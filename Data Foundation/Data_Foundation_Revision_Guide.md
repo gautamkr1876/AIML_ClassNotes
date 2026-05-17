@@ -1,12 +1,22 @@
 <a id="top"></a>
-# Data Foundation — Master Revision Guide
+# Data Foundation — NumPy Master Revision Guide
 
-> **Consolidated quick-revision notes for all four Zomato/food-delivery EDA notebooks.** Built for fast review and advanced interview prep. Every concept, every API, every gotcha — in scannable form, with deep Q&A and a 100-question revision drill at the end.
+> **Consolidated quick-revision notes for the three NumPy notebooks** (Food Delivery EDA 1–3). Built for fast review and advanced interview prep. Every concept, every API, every gotcha — in scannable form, with deep Q&A and a revision drill at the end.
+
+**Companion guides (Pandas pulled out for focused study):**
+- 🐼 [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md) — Series, DataFrame, `iloc`/`loc`, dtype cleanup, `.str` accessor, etc.
+- 🛒 [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md) — applied pandas (joins, groupby, apply, reshape, datetime), visualization, and probability for the Amazon + Sachin notebooks.
 
 **How to use:**
 - **Pre-interview:** read the "🚀 Topic finder" → skim a module's cheat sheet → drill the Q&A.
 - **Just before a coding round:** run the [§13 Revision Drill](#13-drill).
 - **For depth on NumPy basics:** the per-notebook deep-dive is [`Food Delivery .../NumPy_EDA_Interview_Prep_Guide.md`](./Food%20Delivery%20Data%20Exploration%20and%20analysis%201/NumPy_EDA_Interview_Prep_Guide.md).
+
+**External practice (use after you've drilled this guide):**
+- 🎯 [`rougier/numpy-100`](https://github.com/rougier/numpy-100) — 100 NumPy exercises across L1/L2/L3 difficulty.
+- 🎯 [`alexeygrigorev/data-science-interviews`](https://github.com/alexeygrigorev/data-science-interviews) — theory + coding (NumPy, stats, ML).
+- 🎯 [`kojino/120-Data-Science-Interview-Questions`](https://github.com/kojino/120-Data-Science-Interview-Questions) — classic DS interview bank.
+- 🎯 [`chiphuyen/ml-interviews-book`](https://huyenchip.com/ml-interviews-book/) — open ML-interviews book.
 
 ---
 
@@ -22,14 +32,13 @@ Jump straight to the topic you need.
 | `np.where`, `np.any`/`all`, `np.sort`/`argsort`, matrix multiply | [Module 2](#2-module2) |
 | Vectorization, broadcasting (4 rules), `np.tile` | [Module 3](#3-module3) |
 | `split`/`hsplit`/`vsplit`, `vstack`/`hstack`/`concatenate` | [Module 3](#3-module3) |
-| Pandas `Series`/`DataFrame`, `pd.concat`, `read_csv` | [Module 4](#4-module4) |
-| `.iloc` vs `.loc`, `set_index`/`reset_index`, `.info()`/`.describe()` | [Module 4](#4-module4) |
-| Column ops, rename, `astype`, `pd.to_numeric`, string accessor, NaN | [Module 4](#4-module4) |
-| `.unique()`, `.nunique()`, `.value_counts()`, export | [Module 4](#4-module4) |
-| All key terms at once | [§9 Master terms](#9-terms) |
-| Every API at once | [§10 API cheat sheet](#10-apis) |
-| Common gotchas | [§11 Gotchas](#11-gotchas) |
+| Pandas Series, DataFrame, indexing, cleanup | → [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md) |
+| Joins, groupby, apply, reshape, datetime, plotting, probability | → [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md) |
+| All NumPy terms at once | [§9 Master terms](#9-terms) |
+| Every NumPy API at once | [§10 API cheat sheet](#10-apis) |
+| Common NumPy gotchas | [§11 Gotchas](#11-gotchas) |
 | Hard interview questions (advanced) | [§12 Advanced Q&A](#12-advanced) |
+| 🌐 Sourced interview questions (drill bank) | [Sourced bank](#sourced-bank) |
 | Speed-run revision before interview | [§13 Drill](#13-drill) |
 | Best practices | [§14 Best practices](#14-bestpractices) |
 
@@ -40,7 +49,7 @@ Jump straight to the topic you need.
 1. [Module 1 — NumPy Foundation](#1-module1)
 2. [Module 2 — Filtering, Reshape, Aggregation, Matrix Multiply](#2-module2)
 3. [Module 3 — Broadcasting, Vectorization, Stack & Split](#3-module3)
-4. [Module 4 — Pandas: Series & DataFrame](#4-module4)
+4. *Pandas → moved to [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md)*
 5. [Cross-module concept map](#5-conceptmap)
 6. [The 5 mental anchors (memorize these)](#6-anchors)
 7. [Zomato dataset cheat sheet](#7-zomato)
@@ -49,7 +58,8 @@ Jump straight to the topic you need.
 10. [⚙️ API cheat sheet (every method, one table)](#10-apis)
 11. [⚠️ Gotchas & traps (all in one place)](#11-gotchas)
 12. [🎯 Advanced interview Q&A](#12-advanced)
-13. [🔁 100-question revision drill](#13-drill)
+12B. [🌐 Sourced interview questions](#sourced-bank)
+13. [🔁 NumPy revision drill (70 questions)](#13-drill)
 14. [✅ Best practices](#14-bestpractices)
 15. [📦 What's in each notebook (mapping)](#15-mapping)
 
@@ -59,6 +69,49 @@ Jump straight to the topic you need.
 ## 1. Module 1 — NumPy Foundation
 
 > Notebook 1 — ML motivation, EDA, lists vs arrays, why NumPy is fast, array creation, shape/dtype, type coercion, `astype`, indexing, slicing. Deep dive in [NumPy_EDA_Interview_Prep_Guide.md](./Food%20Delivery%20Data%20Exploration%20and%20analysis%201/NumPy_EDA_Interview_Prep_Guide.md).
+
+### 🪜 Mental model
+
+**Tea-room analogy.** A Python list scatters its ingredients across the room — each integer is a separate object on the heap, accessed by pointer-chase. NumPy lines them all up on one shelf (contiguous memory + homogeneous dtype). *That single layout choice explains every NumPy speedup and every NumPy gotcha you'll meet.* Hold this image in your head and most behaviors become predictable.
+
+### 🪞 Basic → Intermediate → Advanced — dtype & type coercion
+
+**Basic** — a NumPy array has *one* dtype shared by every element.
+```python
+np.array([1, 2, 3]).dtype           # int64
+```
+
+**Intermediate** — mixing types promotes the whole array (priority: **str > float > int > bool**).
+```python
+np.array([1, 2.5, 3]).dtype         # float64
+np.array([True, 6]).dtype           # int64 (True → 1)
+```
+
+**Advanced** — one stray string silently coerces everything to fixed-width Unicode and breaks subsequent math. Defend with explicit `dtype=` so the failure is loud.
+```python
+np.array([1, 2, 'oops']).dtype      # <U21 — arithmetic is now broken
+np.array([1, 2, 'oops'], dtype=float)   # ValueError — fail loud, fix at the source
+```
+
+### 🪞 Basic → Intermediate → Advanced — indexing & slicing
+
+**Basic** — slicing uses `start:end:step`, **end exclusive**, and returns a view (shared memory).
+```python
+arr = np.arange(10)
+arr[2:5]                             # array([2, 3, 4])
+```
+
+**Intermediate** — 2D arrays index by `[row, col]`. Comma-form (`arr[r, c]`) is one C call; chained-form (`arr[r][c]`) is two.
+```python
+arr2d[1, 2]                          # idiomatic and faster
+arr2d[1:3, 0]                        # 2 rows × 1 col → 1D
+```
+
+**Advanced** — basic slices are **views**, fancy/boolean indexing returns **copies**. Mutating a view changes the source; mutating a copy doesn't. Verify with `b.base is a` or `np.shares_memory(a, b)`.
+```python
+sub = arr[1:4]; sub[0] = 99          # arr is mutated
+sub = arr[[1, 2, 3]]; sub[0] = 99    # arr unchanged (fancy = copy)
+```
 
 <a id="1c-cheat"></a>
 ### 🧠 Concept cheat sheet
@@ -92,22 +145,24 @@ arr[i], arr[-i], arr[[i, j, k]], arr[i, j], arr[i:j:k]
 
 ### 🎯 Advanced Q&A — Module 1
 
-1. **Why is NumPy 10×–100× faster than a Python list for math?**
+> Mix of original drills and questions adapted from `rougier/numpy-100`, `alexeygrigorev/data-science-interviews`, and `kojino/120-Data-Science-Interview-Questions`.
+
+1. **Why is NumPy 10×–100× faster than a Python list for math?** *(common FAANG opener)*
    Three reasons: (1) contiguous memory block (cache-friendly, no pointer-chase), (2) homogeneous dtype (CPU streams through with no per-element type checks), (3) operations dispatch to **vectorized C with SIMD** instructions instead of Python interpreter loops.
 
-2. **What does `dtype='<U7'` mean and when does NumPy choose it?**
+2. **What does `dtype='<U7'` mean and when does NumPy choose it?** *(adapted from `rougier/numpy-100`)*
    Little-endian Unicode string, up to 7 characters. NumPy picks it when **any** element in the input list is a string — type priority promotes the whole array.
 
 3. **Does `astype(int)` round or truncate?**
    **Truncate.** `1.9 → 1`. To round properly: `np.round(arr).astype(int)`.
 
-4. **What's the difference between `(3,)`, `(3, 1)` and `(1, 3)`?**
+4. **What's the difference between `(3,)`, `(3, 1)` and `(1, 3)`?** *(common broadcasting trap)*
    `(3,)` is 1D. `(3, 1)` is a 2D column vector. `(1, 3)` is a 2D row vector. They contain the same values but behave differently under broadcasting and matmul.
 
 5. **Why does `np.array([True, 6])` give `[1, 6]`?**
    Type priority: bool is silently upgraded to int (True→1, False→0). The whole array becomes `int`.
 
-6. **`arr[1, 2]` vs `arr[1][2]` — same result?**
+6. **`arr[1, 2]` vs `arr[1][2]` — same result?** *(adapted from `alexeygrigorev/data-science-interviews`)*
    Same value, different mechanism. `arr[1, 2]` is one C call. `arr[1][2]` is two operations (row 1, then element 2). The single-bracket form is the idiom and is faster.
 
 [🔝 Back to top](#top)
@@ -118,6 +173,47 @@ arr[i], arr[-i], arr[[i, j, k]], arr[i, j], arr[i:j:k]
 ## 2. Module 2 — Filtering, Reshape, Aggregation, Matrix Multiply
 
 > Notebook 2 — `np.arange`, fancy indexing, boolean masking, 2D reshape, axis/aggregations, `np.where`/`any`/`all`, sorting, element-wise vs matrix multiplication.
+
+### 🪜 Mental model
+
+**Axis-that-disappears.** When you write `arr.sum(axis=k)`, axis `k` is the dimension that *collapses*. `axis=0` (rows axis) disappears → you're left with one number per column → "per-column" results. `axis=1` (cols axis) disappears → per-row results. Memorize one and the other is just the opposite. *The axis you pass is the axis you kill.*
+
+### 🪞 Basic → Intermediate → Advanced — boolean masking
+
+**Basic** — a boolean array selects elements where True.
+```python
+arr[arr > 500]                       # keep elements > 500
+```
+
+**Intermediate** — masks from one array can filter another, as long as lengths match.
+```python
+costs[votes >= 500]                  # cost of restaurants with ≥500 votes
+```
+
+**Advanced** — compound conditions need `&` / `|` / `~` (bitwise) and parentheses around each comparison. Using `and`/`or` raises `ValueError`.
+```python
+arr[(arr > 0) & (arr < 5)]           # right
+arr[arr > 0 and arr < 5]             # ValueError: truth value of array is ambiguous
+```
+
+### 🪞 Basic → Intermediate → Advanced — `reshape` & `-1`
+
+**Basic** — restructure same data into a new shape; element count must match.
+```python
+np.arange(12).reshape(3, 4)          # (12,) → (3, 4)
+```
+
+**Intermediate** — `-1` means "infer this dim from the size."
+```python
+np.arange(12).reshape(-1, 4)         # NumPy fills in 3
+np.arange(12).reshape(3, -1)         # NumPy fills in 4
+```
+
+**Advanced** — `reshape` is usually a view, but **only when strides are compatible**. After a transpose (C → F order) it must copy. Only one `-1` per call.
+```python
+arr.T.reshape(...)                   # may silently copy — check arr.flags
+np.arange(12).reshape(-1, -1)        # ValueError — multiple -1 not allowed
+```
 
 ### 🧠 Concept cheat sheet
 
@@ -182,7 +278,9 @@ score = data @ weights                # (n, 3) @ (3,) → (n,)
 
 ### 🎯 Advanced Q&A — Module 2
 
-1. **Why is the **end** value of `np.arange` excluded?**
+> Mix of original drills and questions adapted from `rougier/numpy-100`, `alexeygrigorev/data-science-interviews`, and `andrewekhalel/MLQuestions`.
+
+1. **Why is the **end** value of `np.arange` excluded?** *(common Python-convention question)*
    Same convention as Python `range` and Python slicing — half-open intervals make length arithmetic clean (`stop - start = count` for step 1). For inclusive ranges, use `np.linspace(start, stop, n)`.
 
 2. **What does `arr.reshape(-1, 2)` mean exactly?**
@@ -223,6 +321,53 @@ score = data @ weights                # (n, 3) @ (3,) → (n,)
 ## 3. Module 3 — Broadcasting, Vectorization, Stack & Split
 
 > Notebook 3 — element-wise vs matmul recap, **vectorization** (`np.vectorize`), **broadcasting** (4 rules), `np.tile`, **splitting** (`split`/`hsplit`/`vsplit`), **stacking** (`vstack`/`hstack`/`concatenate`).
+
+### 🪜 Mental model
+
+**Right-align shapes.** For broadcasting, line up the two shape tuples by their **rightmost** dimension and compare position-by-position. Each pair must either be **equal** or one must be **1**. Missing left-side dimensions are silently treated as 1. That's the whole rule — the rest is bookkeeping. Visually:
+
+```
+A: (5, 2)        A: (5, 2)         A: (5, 2)
+B:    (2,)   ✓   B: (5, 1)    ✓    B: (5,)     ✗ (2 vs 5, neither is 1)
+```
+
+### 🪞 Basic → Intermediate → Advanced — broadcasting
+
+**Basic** — match a smaller shape against a larger one with no copy.
+```python
+np.array([1, 2, 3]) + 10             # (3,) + scalar → (3,)
+```
+
+**Intermediate** — center a 2D matrix by subtracting the per-column mean.
+```python
+data - data.mean(axis=0)             # (n, k) - (k,) → (n, k)
+```
+
+**Advanced** — per-row centering needs `keepdims=True` (or `[:, None]`); otherwise the shape collapses and broadcasting fails.
+```python
+data - data.mean(axis=1, keepdims=True)   # (n, k) - (n, 1) → OK
+data - data.mean(axis=1)                  # (n, k) - (n,)   → ValueError
+data - data.mean(axis=1)[:, None]         # also works
+```
+
+### 🪞 Basic → Intermediate → Advanced — stack vs concatenate
+
+**Basic** — `concatenate` joins along an **existing** axis.
+```python
+np.concatenate([a, b], axis=0)       # add rows; cols must match
+```
+
+**Intermediate** — `vstack`/`hstack` are shortcuts; `column_stack` promotes 1D arrays to columns.
+```python
+np.vstack([a, b])                    # same cols required
+np.column_stack([votes, ratings])    # two 1D → 2D table
+```
+
+**Advanced** — `stack` creates a **NEW** axis, so all inputs must have *identical* shape. Common confusion: you want `stack` for "5 same-shape images → tensor of shape `(5, H, W, 3)`", not `concatenate`.
+```python
+np.stack([img1, img2, img3], axis=0) # (3, H, W, 3) — new axis 0
+np.concatenate([img1, img2], axis=0) # (2H, W, 3)  — existing axis 0
+```
 
 ### 🧠 Concept cheat sheet
 
@@ -300,7 +445,9 @@ np.vstack([restaurants_df, new_rows])
 
 ### 🎯 Advanced Q&A — Module 3
 
-1. **Why isn't `np.vectorize` true vectorization?**
+> Mix of original drills and questions adapted from `chiphuyen/ml-interviews-book`, `rougier/numpy-100`, and `khanhnamle1994/cracking-the-data-science-interview`.
+
+1. **Why isn't `np.vectorize` true vectorization?** *(common performance trap)*
    It loops in Python under the hood — it's a *convenience* wrapper for elementwise application. Real vectorization means a single C/SIMD call. For speed, replace `np.vectorize` with native NumPy ops (`np.where`, masking) or write a true ufunc with Numba.
 
 2. **You have `(5, 2)` and want to subtract the per-row mean — why does `keepdims=True` matter?**
@@ -328,134 +475,14 @@ np.vstack([restaurants_df, new_rows])
 
 ---
 
-<a id="4-module4"></a>
-## 4. Module 4 — Pandas: Series & DataFrame
+<a id="4-pandas-moved"></a>
+## 4. Pandas — moved to its own guide
 
-> Notebook 4 — Pandas intro. **Series** (1D) and **DataFrame** (2D). Load the Zomato Bangalore CSV. `.iloc`/`.loc`, indexing, `.info()`/`.describe()`, column access, `rename`, `astype`, `pd.to_numeric(errors='coerce')`, `.str` accessor, `.replace`, `.unique`/`.nunique`/`.value_counts`, export.
+The Pandas module (Series, DataFrame, `iloc`/`loc`, dtype cleanup, `.str` accessor, etc.) is now maintained separately so each library can be drilled in isolation.
 
-### 🧠 Concept cheat sheet
+👉 **See [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md)** for cheat sheets, top APIs, gotchas, advanced Q&A, and a 50-question drill — all focused on Pandas.
 
-| Concept | One-liner |
-|---|---|
-| Series | 1D labeled array (one column of a table) |
-| DataFrame | 2D labeled table (rows × columns) |
-| Index | Row labels — implicit (`0,1,2`) or explicit (custom) |
-| `.iloc[i]` | Position-based row access |
-| `.loc[label]` | Label-based row access |
-| `set_index('col')` | Make column the new index |
-| `reset_index(drop=True)` | Revert to default int index; `drop` discards old |
-| `inplace=True` | Modify the DataFrame in place; saves memory |
-| `.info()` | Schema + null counts + dtype + memory |
-| `.describe()` | Summary stats — **numeric columns only by default** |
-| `df['col']` | Single column → Series |
-| `df[['c1','c2']]` | Multiple columns → DataFrame |
-| `.rename(columns={})` | New names; silent on missing |
-| `pd.to_numeric(s, errors='coerce')` | Cast; bad → NaN instead of error |
-| `.str` accessor | Vectorized string ops on a Series |
-| `.replace('N', np.nan)` | Swap values; useful before `astype` |
-| `.unique()` | Distinct values, in order |
-| `.nunique()` | Count of distinct values |
-| `.value_counts()` | Frequencies, sorted desc |
-| `.to_csv(..., index=False)` | Export, drop the row-index column |
-
-### ⚙️ Top APIs
-
-```python
-pd.Series(arr, index=[], name='')
-pd.DataFrame({...}) / pd.DataFrame([[...]])
-pd.concat([s1, s2], axis=1)
-pd.read_csv('path', sep=',', header=0, na_values=...)
-
-df.head(n), df.tail(n)
-df.iloc[i], df.iloc[i:j:k], df.iloc[:, j]
-df.loc[label], df.loc[label, 'col']
-df.set_index('col'), df.reset_index(drop=True, inplace=True)
-df.info(), df.describe(include='all')
-
-df['col'], df[['c1','c2']], df.col              # dot only if name is a clean identifier
-df.rename(columns={'old':'new'}, inplace=True)
-df['new'] = df['existing'] / 2                  # derived column
-
-df['col'] = df['col'].astype(float)
-df['col'] = pd.to_numeric(df['col'], errors='coerce')
-df['col'].str.strip("'\""), df['col'].str[:-2], df['col'].str.lower()
-df['col'].replace('NEW', np.nan)
-
-df['col'].unique(), df['col'].nunique(), df['col'].value_counts()
-df.to_csv('out.csv', index=False)
-```
-
-### 🧩 Code patterns
-
-```python
-# 1. Load → preview → schema
-df = pd.read_csv('zomato.csv')
-df.head(); df.info(); df.describe()
-
-# 2. Standardize column names
-df = df.rename(columns={
-    'approx_cost(for two people)': 'cost_for_two',
-    'listed_in(type)': 'listing_type',
-    'rate': 'rating',
-})
-
-# 3. Clean a numeric column polluted with strings
-df['rating'] = df['rating'].astype(str).str[:-2]          # "4.1/5" → "4.1"
-df['rating'] = df['rating'].replace(['NEW', '-'], np.nan)
-df['rating'] = pd.to_numeric(df['rating'], errors='coerce')
-
-# 4. Cost-with-commas cleanup
-df['cost_for_two'] = df['cost_for_two'].str.replace(',', '').astype(float)
-
-# 5. Add derived feature
-df['cost_for_one'] = df['cost_for_two'] / 2
-
-# 6. Filter
-high_rated = df[df['rating'] > 4]
-
-# 7. Top categories
-df['location'].value_counts().head(10)
-df['cuisines'].value_counts().head(10)
-
-# 8. Index by restaurant name
-by_name = df.set_index('name')
-by_name.loc['Truffles']
-
-# 9. Save cleaned data
-df.to_csv('zomato_clean.csv', index=False)
-```
-
-### 🎯 Advanced Q&A — Module 4
-
-1. **`.iloc` vs `.loc` — when do they differ even if both work?**
-   `iloc[0]` is **always** the first row, regardless of how the index is labeled. `loc[0]` returns the row whose **label** is `0` — which may not be the first row after a sort, a filter, or a `set_index`. Use `iloc` for positional logic and `loc` for label logic.
-
-2. **Why does `.describe()` sometimes show fewer columns than expected?**
-   By default it only profiles **numeric** columns. If `rating` is stored as `object` (because of a stray `'NEW'`), it's excluded. Pass `include='all'` to see categoricals too, or fix the dtype first with `pd.to_numeric(errors='coerce')`.
-
-3. **`astype(float)` vs `pd.to_numeric(errors='coerce')`?**
-   `astype(float)` raises on any unparseable value. `pd.to_numeric(errors='coerce')` converts bad values to `NaN`. The coerce path is the safer cleanup pattern; the strict path is for data you trust.
-
-4. **What does `inplace=True` actually do and why prefer it (sometimes)?**
-   Modifies the DataFrame in-place; returns `None`. Saves memory by skipping the copy. Note: modern Pandas (>=2.0) is *de-emphasizing* `inplace=True` because it complicates method-chaining and copy-on-write semantics. Prefer `df = df.rename(...)` unless memory is critical.
-
-5. **`SettingWithCopyWarning` — when does it fire and what's the fix?**
-   When you assign to a slice that may be a view: `df[df['x']>0]['y'] = 1`. Pandas can't tell if you meant to modify `df` or a copy. Fix: use `.loc` in one shot — `df.loc[df['x']>0, 'y'] = 1`.
-
-6. **`pd.concat([s1, s2], axis=1)` with mismatched indexes — what happens?**
-   Union join: aligned by index, missing positions filled with `NaN`. Use `join='inner'` for intersection (no NaN, but you drop rows).
-
-7. **`df['col']` vs `df.col` — any real difference?**
-   Same Series most of the time. **But** `df.col` fails if the name has spaces, special chars, or collides with a method (e.g., `df.shape` is the property, not a column named `shape`). Bracket form is the safe default.
-
-8. **Why does `df['rating'].mean()` return `NaN` even after cleaning?**
-   A single remaining NaN doesn't propagate in `mean()` — Pandas's `.mean()` skips NaNs by default (unlike NumPy's `np.mean`, which doesn't). If you get NaN, the column dtype is probably still `object`. Check `df['rating'].dtype`.
-
-9. **`.unique()` vs `.value_counts()` — when each?**
-   `.unique()` returns distinct values in order of appearance — quick check of "what categories exist." `.value_counts()` returns frequencies sorted descending — what you want for "what's most common."
-
-10. **How does `pd.read_csv` decide dtypes? How do you override?**
-    It scans the column; if all parseable as int, uses int; if any float, uses float; otherwise object. Override with `dtype={'cost': 'float64'}`. Use `na_values=['N', 'NEW', '-']` to convert sentinels to NaN at load time — saves the cleanup step.
+For applied / project-level pandas (joins, groupby, apply, reshape, datetime, plotting), use [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md).
 
 [🔝 Back to top](#top)
 
@@ -464,7 +491,7 @@ df.to_csv('zomato_clean.csv', index=False)
 <a id="5-conceptmap"></a>
 ## 5. Cross-module concept map
 
-How the four notebooks build on each other:
+How the three NumPy notebooks build on each other (Pandas lives in its own guide):
 
 ```
 Module 1: WHAT IS DATA?
@@ -486,13 +513,7 @@ Module 3: WHAT CAN I DO WITH MULTIPLE ARRAYS?
   ├── split (split/array_split/hsplit/vsplit)
   └── stack (vstack/hstack/concatenate/stack)
 
-Module 4: REAL TABULAR DATA — PANDAS
-  ├── Series & DataFrame
-  ├── load, preview, schema, describe
-  ├── select (iloc/loc, columns, slices)
-  ├── transform (rename, astype, to_numeric, str, replace)
-  ├── filter (boolean), derive (new cols)
-  └── explore (unique, value_counts) → export
+Next step: REAL TABULAR DATA → Pandas_Revision_Guide.md
 ```
 
 [🔝 Back to top](#top)
@@ -502,7 +523,7 @@ Module 4: REAL TABULAR DATA — PANDAS
 <a id="6-anchors"></a>
 ## 6. The 5 mental anchors (memorize these)
 
-Five examples that, if internalized, give you ~70% of NumPy/Pandas interviews.
+Five examples that, if internalized, give you ~70% of NumPy interviews.
 
 1. **`[1,2,3] * 2` → `[1,2,3,1,2,3]` but `np.array([1,2,3]) * 2` → `[2,4,6]`.**
    This is why every data scientist uses NumPy.
@@ -523,6 +544,8 @@ If you can teach a friend each of these in 60 seconds, you've internalized the f
 
 <a id="7-zomato"></a>
 ## 7. Zomato dataset cheat sheet
+
+> The cleanup steps below use Pandas. For the underlying API mechanics (`pd.to_numeric`, `.str` accessor, `replace`, etc.) see [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md).
 
 Columns you'll see across the notebooks and what to remember about them:
 
@@ -550,12 +573,14 @@ Common questions answered with this data:
 <a id="8-businessmap"></a>
 ## 8. Common business questions → which API
 
+> Most of these use Pandas. NumPy is involved when you compose with `np.log`/`np.where` or hand work off to ndarrays. For the full Pandas business map see [`Pandas_Revision_Guide.md` §8](./Pandas_Revision_Guide.md#8-businessmap).
+
 | Business question | API |
 |---|---|
 | "Which restaurants are above 4★?" | `df[df['rating'] > 4]` |
 | "Top 10 locations by restaurant count?" | `df['location'].value_counts().head(10)` |
 | "Cost per person?" | `df['cost_for_two'] / 2` |
-| "Average rating per cuisine?" | `df.groupby('cuisines')['rating'].mean()` (preview of Module 5) |
+| "Average rating per cuisine?" | `df.groupby('cuisines')['rating'].mean()` |
 | "Filter high-vote and low-cost?" | `df[(df['votes']>500) & (df['cost']<500)]` |
 | "Replace 'NEW' ratings with NaN?" | `df['rating'].replace('NEW', np.nan)` |
 | "How many distinct locations?" | `df['location'].nunique()` |
@@ -582,22 +607,15 @@ All key terms across the four notebooks — alphabetical for quick lookup.
 | Coercion | Forcing one type into another (e.g., `errors='coerce'` makes bad values NaN) |
 | Contiguous memory | One continuous RAM block — NumPy's secret weapon |
 | Copy | New buffer; mutations don't affect the source |
-| DataFrame | Pandas 2D labeled table |
 | Determinant | Scalar from a square matrix; 0 = singular |
 | `dtype` | Element type (`int64`, `float64`, `<U7`, `object`) |
 | EDA | Exploratory Data Analysis — understand the data first |
-| Explicit index | Custom-labeled DataFrame index |
 | Fancy indexing | Selecting by a list/array of positions; returns **copy** |
-| Implicit index | Default integer 0,1,2,… index |
-| `iloc` | Position-based row access |
-| `loc` | Label-based row access |
 | Matrix multiplication | (m,k)×(k,n)→(m,n); use `@` |
 | `ndarray` | NumPy's n-dimensional array — the core data structure |
 | NaN | Floating-point "not a number" sentinel |
-| Object dtype | Any non-numeric column (often strings or mixed) |
 | Ravel | 1D view-when-possible; `flatten` always copies |
 | Reshape | Same data, new shape; element count must match |
-| Series | Pandas 1D labeled array |
 | SIMD | Single Instruction Multiple Data — CPU parallelism NumPy uses |
 | Slicing | `start:end:step`; end exclusive; returns **view** |
 | Sort | Ordered values; `argsort` gives ordered indices |
@@ -605,7 +623,6 @@ All key terms across the four notebooks — alphabetical for quick lookup.
 | Concatenate | Combine arrays along an **existing** axis |
 | Stride | Bytes to step per axis — under the hood of views/transpose |
 | Type priority | String > Float > Int > Bool |
-| `value_counts` | Frequency table for a Series |
 | Vectorization | Apply op across an array in one C call |
 | View | Window into the same memory; mutations propagate |
 | `np.where` | Conditional replacement or index lookup |
@@ -669,37 +686,7 @@ The single table to scan five minutes before any interview.
 | `np.linalg.norm/solve/inv/det/eig/svd` | Linear algebra |
 | `np.save / np.load / np.savez` | Binary I/O |
 
-### Pandas creation & I/O
-| Call | Purpose |
-|---|---|
-| `pd.Series(arr, index=...)` | 1D labeled array |
-| `pd.DataFrame({...})` / `pd.DataFrame([[...]])` | 2D table |
-| `pd.concat([...], axis=0/1)` | Glue along axis |
-| `pd.read_csv(path)` | Load CSV |
-| `df.to_csv(path, index=False)` | Save CSV |
-
-### Pandas selection
-| Call | Purpose |
-|---|---|
-| `df.head(n)` / `df.tail(n)` | First / last n rows |
-| `df.iloc[i, j]` | Position-based |
-| `df.loc[label, 'col']` | Label-based |
-| `df['col']` / `df[['c1','c2']]` | Single / multi column |
-| `df.set_index('col')` / `df.reset_index(drop=True)` | Index manip |
-
-### Pandas info & cleanup
-| Call | Purpose |
-|---|---|
-| `df.info()` | Schema + nulls |
-| `df.describe(include='all')` | Stats |
-| `df.rename(columns={...})` | Rename |
-| `df['c'].astype(t)` | Cast (strict) |
-| `pd.to_numeric(s, errors='coerce')` | Cast (NaN on fail) |
-| `s.str.strip / .replace / .lower / .[i:j]` | Vectorized string ops |
-| `s.replace(old, new)` | Replace values |
-| `s.unique() / .nunique() / .value_counts()` | Distinct / count / frequency |
-| `df.sort_values('col', ascending=False)` | Sort rows |
-| `df.dropna() / df.fillna(v)` | NaN handling |
+> **Pandas APIs?** See [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md) for the dedicated cheat sheet (creation, I/O, selection, info, cleanup).
 
 [🔝 Back to top](#top)
 
@@ -732,21 +719,7 @@ The full collection — re-read this before any technical interview.
 18. **Integer overflow with small dtypes.** `int8` wraps at 127.
 19. **Transpose is a view, not a copy** — strides are swapped, no data move.
 
-### Pandas
-
-20. **`df.col` fails on names with spaces or special characters.** Use `df['col']`.
-21. **`.describe()` skips object columns by default.** Use `include='all'` or fix dtypes.
-22. **`astype(float)` raises on a single bad string.** Use `pd.to_numeric(errors='coerce')` for messy data.
-23. **`SettingWithCopyWarning`:** assign via `.loc` in one step — `df.loc[mask, 'col'] = val`.
-24. **`rename(columns={'nonexistent': 'x'})` doesn't error** — it silently does nothing.
-25. **`.iloc[0]` ≠ `.loc[0]` when the index is non-default.**
-26. **`pd.concat([s1, s2], axis=1)` with mismatched indexes** → union with NaN fills.
-27. **`inplace=True` returns `None`** — never write `df = df.rename(..., inplace=True)`.
-28. **Mean of a Pandas Series skips NaN by default; NumPy's `mean` doesn't.** Know which you're using.
-29. **`value_counts()` excludes NaN by default.** Pass `dropna=False` to include.
-30. **`pd.read_csv` infers dtypes from the data** — one stray `'N'` and the whole column becomes `object`.
-31. **`reset_index()` without `drop=True` keeps the old index as a new column.**
-32. **`df['col'].str` requires the column to be string-typed** — fails on numeric/object-with-mixed.
+> **Pandas gotchas?** See [`Pandas_Revision_Guide.md` §6](./Pandas_Revision_Guide.md#6-gotchas) for the dedicated list (`SettingWithCopyWarning`, `.iloc`/`.loc` mismatches, dtype inference, NaN handling, etc.).
 
 [🔝 Back to top](#top)
 
@@ -801,65 +774,22 @@ Fancy indexing returns a **copy**. The original is unchanged.
 a[:, None] * b[None, :]      # (m,1) × (1,n) → (m,n)
 ```
 
-### Pandas mechanics
+### Numerical stability & algorithmic
 
-**Q11. Difference between `df.iloc[0]` and `df.loc[0]`?**
-`iloc` is **position**-based — first row. `loc` is **label**-based — the row whose index equals `0`. They diverge after `set_index`, sort, or filter.
-
-**Q12. Why might `df['rating'].mean()` return `NaN` even after dropping NaNs?**
-Because the column dtype is `object` (strings) — Pandas treats numeric methods differently for non-numeric. Cast first: `pd.to_numeric(errors='coerce')`.
-
-**Q13. What's `SettingWithCopyWarning` and how do you fix it?**
-Pandas can't tell if you're modifying the original or a copy. Fix: single-step `.loc` assignment — `df.loc[mask, 'col'] = val`.
-
-**Q14. `pd.concat([s1, s2], axis=1)` with mismatched indexes — what's the result?**
-Union join with NaN fills. Use `join='inner'` to keep only intersecting labels.
-
-**Q15. `astype(float)` vs `pd.to_numeric(errors='coerce')` — which and when?**
-`astype` is strict — raises on bad data. `to_numeric(coerce)` returns NaN for bad data. Cleanup pipelines almost always use `coerce`.
-
-### Design & judgment
-
-**Q16. A column has values like `"4.1/5"`, `"NEW"`, `"-"`. Walk me through the cleanup.**
-```python
-df['rating'] = df['rating'].astype(str).str[:-2]       # strip '/5'
-df['rating'] = df['rating'].replace(['NEW', '-', ''], np.nan)
-df['rating'] = pd.to_numeric(df['rating'], errors='coerce')
-```
-Then verify: `df['rating'].dtype` is `float64`, `df['rating'].isna().sum()` shows count of unrecoverable rows.
-
-**Q17. You see `df['cost_for_two']` as `object`. The first 5 values look like `'1,200'`, `'1,500'`, `'800'`. What dtype was inferred and what's the fix?**
-Inferred as `object` because of the commas — Pandas couldn't parse `'1,200'` as a number.
-Fix: `df['cost_for_two'] = df['cost_for_two'].str.replace(',', '').astype(float)`. Or load with `pd.read_csv(thousands=',')` from the start.
-
-**Q18. The dataset has 51K rows; you want top 10 locations. How do you do it in three lines?**
-```python
-top = df['location'].value_counts().head(10)
-top.plot(kind='bar')
-```
-
-**Q19. Compute "value score" = rating ÷ cost_for_two, then top 5.**
-```python
-df['value_score'] = df['rating'] / df['cost_for_two']
-df.nlargest(5, 'value_score')[['name', 'rating', 'cost_for_two', 'value_score']]
-```
-
-**Q20. Why might `np.linalg.inv(A) @ b` be a bad idea even if mathematically equivalent to `solve(A, b)`?**
+**Q11. Why might `np.linalg.inv(A) @ b` be a bad idea even if mathematically equivalent to `solve(A, b)`?**
 `inv` is slower (LU is one-shot) and *numerically less stable* — it amplifies floating-point error. `np.linalg.solve(A, b)` is the production choice.
 
-### Algorithmic
-
-**Q21. Sort a 2D NumPy array by column 0, keep rows together.**
+**Q12. Sort a 2D NumPy array by column 0, keep rows together.**
 ```python
 data[data[:, 0].argsort()]
 ```
 
-**Q22. Compute moving average of length 3 on a 1D array (no Pandas).**
+**Q13. Compute moving average of length 3 on a 1D array (no Pandas).**
 ```python
 np.convolve(arr, np.ones(3)/3, mode='valid')
 ```
 
-**Q23. How would you bucket continuous values into [low, medium, high]?**
+**Q14. How would you bucket continuous values into [low, medium, high]?**
 ```python
 np.select(
     [arr < 200, arr < 600],
@@ -868,23 +798,76 @@ np.select(
 )
 ```
 
-**Q24. Compute pairwise Euclidean distances between rows of `(n, d)` matrix without a Python loop.**
+**Q15. Compute pairwise Euclidean distances between rows of `(n, d)` matrix without a Python loop.**
 ```python
 diff = X[:, None, :] - X[None, :, :]       # (n, n, d)
 dist = np.sqrt((diff**2).sum(axis=-1))     # (n, n)
 ```
 
-**Q25. Why prefer `df.groupby` over manual masking when computing per-group stats?**
-`groupby` is C-optimized, handles NaN cleanly, supports multi-key, integrates with chained aggregations. Manual masking duplicates work and is bug-prone.
+> **Pandas Q&A?** See [`Pandas_Revision_Guide.md` §7](./Pandas_Revision_Guide.md#7-advanced) for `iloc`/`loc`, `SettingWithCopyWarning`, dtype coercion, cleanup pipelines, etc.
+
+[🔝 Back to top](#top)
+
+---
+
+<a id="sourced-bank"></a>
+## 🌐 Sourced interview questions
+
+> **Real questions paraphrased from canonical interview-prep sources.** Use this as your standalone practice bank — no internet required. Each batch keeps the source's original numbering for traceability.
+
+### Batch 1 — from [`rougier/numpy-100`](https://github.com/rougier/numpy-100) (★ easy / ★★ medium / ★★★ hard)
+
+| # | Question | Answer |
+|---|---|---|
+| 1 (★, #3) | Create a zero-filled array of size 10. | `np.zeros(10)` |
+| 2 (★, #4) | Determine memory size of an array. | `arr.nbytes` or `arr.size * arr.itemsize` |
+| 3 (★, #6) | Vector of length 10 with the 5th element set to 1. | `z = np.zeros(10); z[4] = 1` |
+| 4 (★, #7) | Vector with values 10–49. | `np.arange(10, 50)` |
+| 5 (★, #8) | Reverse a vector. | `arr[::-1]` |
+| 6 (★, #9) | 3×3 matrix with values 0–8. | `np.arange(9).reshape(3, 3)` |
+| 7 (★, #10) | Find indices of non-zero elements in `[1,2,0,0,4,0]`. | `np.nonzero([1,2,0,0,4,0])` → `(array([0,1,4]),)` |
+| 8 (★, #11) | 3×3 identity matrix. | `np.eye(3)` |
+| 9 (★, #13) | Min/max of a 10×10 random array. | `a.min(), a.max()` |
+| 10 (★, #15) | 2D array with 1 on borders, 0 inside. | `a = np.ones((n,n)); a[1:-1, 1:-1] = 0` |
+| 11 (★, #17) | What do `0 * np.nan` and `np.nan == np.nan` return? | `nan` and `False` — NaN propagates and is never equal to itself |
+| 12 (★, #23) | Define a custom dtype for RGBA. | `np.dtype([('r','u1'),('g','u1'),('b','u1'),('a','u1')])` |
+| 13 (★, #24) | Real matrix product `(5,3) × (3,2)`. | `A @ B` |
+| 14 (★, #25) | Negate elements between 3 and 8 in a 1D array, in-place. | `arr[(arr>=3) & (arr<=8)] *= -1` |
+| 15 (★, #29) | Round away from zero (not toward). | `np.where(arr >= 0, np.ceil(arr), np.floor(arr))` |
+| 16 (★, #30) | Common values between two arrays. | `np.intersect1d(a, b)` |
+| 17 (★★, #44) | Convert Cartesian to polar coordinates. | `r = np.hypot(x, y); θ = np.arctan2(y, x)` |
+
+### Batch 2 — from [`alexeygrigorev/data-science-interviews`](https://github.com/alexeygrigorev/data-science-interviews) (NumPy-relevant theory)
+
+| # | Question | One-liner answer |
+|---|---|---|
+| 18 | Difference between a Python list and a NumPy array? | NumPy = contiguous memory + homogeneous dtype + vectorized C/SIMD → 10–100× faster on numeric work. |
+| 19 | Why is broadcasting essentially free in memory? | Stride trick — the smaller array is "stretched" via a stride of 0 on the broadcast axis; no copy. |
+| 20 | View vs copy — when does each occur? | Basic slicing → **view** (shared memory). Fancy/boolean indexing → **copy**. Verify with `np.shares_memory(a, b)`. |
+
+### Batch 3 — common FAANG/senior NumPy patterns
+
+| # | Question | One-liner answer |
+|---|---|---|
+| 21 | Compute all pairwise Euclidean distances of an `(n, d)` matrix without a Python loop. | `np.sqrt(((X[:, None] - X[None]) ** 2).sum(-1))` |
+| 22 | Why prefer `np.linalg.solve(A, b)` over `np.linalg.inv(A) @ b`? | Faster (one LU factorization) and *numerically more stable* — `inv` amplifies floating-point error. |
+| 23 | Add a new axis to a 1D vector for broadcasting. | `arr[:, None]` → column; `arr[None, :]` → row. |
+| 24 | How to bucket continuous values into `[low, medium, high]` without `pd.cut`? | `np.select([arr<200, arr<600], ['low','medium'], default='high')` |
+| 25 | Why does `arr.sum(axis=0)` give per-column results? | The axis you pass is the axis that **collapses** — `axis=0` collapses rows → one value per column. |
+
+### Citations & where to drill more
+- 🎯 [`rougier/numpy-100`](https://github.com/rougier/numpy-100) — full 100 drills with graded difficulty.
+- 🎯 [`alexeygrigorev/data-science-interviews`](https://github.com/alexeygrigorev/data-science-interviews) — theory + coding.
+- 🎯 [`kojino/120-Data-Science-Interview-Questions`](https://github.com/kojino/120-Data-Science-Interview-Questions) — broader DS bank.
 
 [🔝 Back to top](#top)
 
 ---
 
 <a id="13-drill"></a>
-## 13. 🔁 100-question revision drill
+## 13. 🔁 NumPy revision drill (70 questions)
 
-Designed as a **timed pre-interview tool**. Read each question, answer in your head, peek. Aim for under 15 seconds per question — finish all 100 in under 30 minutes.
+Designed as a **timed pre-interview tool**. Read each question, answer in your head, peek. Aim for under 15 seconds per question — finish all 70 in under 20 minutes. For Pandas drill, see [`Pandas_Revision_Guide.md` §9](./Pandas_Revision_Guide.md#9-drill).
 
 ### Block A — NumPy basics (Q1–25)
 
@@ -965,43 +948,9 @@ Designed as a **timed pre-interview tool**. Read each question, answer in your h
 69. Two arrays for matmul shapes? → **Inner dims must match**
 70. Composite score formula? → **`data @ weights`**
 
-### Block D — Pandas (Q71–95)
+**Score yourself**: 63+ = strong, 53–62 = solid, 42–52 = revise, <42 = re-read modules.
 
-71. Series? → **1D labeled array**
-72. DataFrame? → **2D labeled table**
-73. `iloc` is? → **Position-based**
-74. `loc` is? → **Label-based**
-75. `set_index('col')` does? → **Make column the index**
-76. `reset_index(drop=True)`? → **Default int index; old discarded**
-77. `inplace=True`? → **Modify in place; returns None**
-78. `.head(5)` returns? → **First 5 rows**
-79. `.info()` shows? → **Schema, nulls, dtypes, memory**
-80. `.describe()` covers? → **Numeric columns by default**
-81. Include all in describe? → **`include='all'`**
-82. `df['col']` returns? → **Series**
-83. `df[['c1','c2']]` returns? → **DataFrame**
-84. Rename a column? → **`df.rename(columns={'old':'new'})`**
-85. Rename silent on missing? → **Yes**
-86. Strict cast? → **`.astype(float)`**
-87. Safe cast? → **`pd.to_numeric(errors='coerce')`**
-88. String accessor? → **`.str`** (e.g., `.str.strip()`)
-89. Replace value? → **`s.replace('NEW', np.nan)`**
-90. Distinct values? → **`.unique()`**
-91. Count of distinct? → **`.nunique()`**
-92. Frequency table? → **`.value_counts()`**
-93. value_counts excludes NaN? → **Yes by default — `dropna=False` to include**
-94. Save CSV no index? → **`to_csv('x.csv', index=False)`**
-95. Sort rows by col? → **`df.sort_values('col', ascending=False)`**
-
-### Block E — Application & traps (Q96–100)
-
-96. `SettingWithCopyWarning` fix? → **Use `.loc` in one step**
-97. Why `df['rating'].mean()` returns NaN after cleanup? → **Column still `object` dtype**
-98. Filter compound? → **`df[(df.x>0) & (df.y<5)]`**
-99. NaN-aware mean (NumPy)? → **`np.nanmean`**
-100. NaN-aware mean (Pandas)? → **`.mean()` skips NaN by default**
-
-**Score yourself**: 90+ = strong, 75–89 = solid, 60–74 = revise, <60 = re-read modules.
+> **Continue with Pandas?** [`Pandas_Revision_Guide.md` §9 drill](./Pandas_Revision_Guide.md#9-drill) — 50 more questions on Series, DataFrame, `iloc`/`loc`, cleanup, and traps.
 
 [🔝 Back to top](#top)
 
@@ -1010,7 +959,7 @@ Designed as a **timed pre-interview tool**. Read each question, answer in your h
 <a id="14-bestpractices"></a>
 ## 14. ✅ Best practices
 
-Crystallized do's and don'ts from all four modules.
+Crystallized NumPy do's and don'ts. For Pandas best practices, see [`Pandas_Revision_Guide.md` §10](./Pandas_Revision_Guide.md#10-bestpractices).
 
 ### Performance
 
@@ -1027,27 +976,20 @@ Crystallized do's and don'ts from all four modules.
 8. **`np.isnan` not `== np.nan`** (NaN is never equal to anything).
 9. **`keepdims=True`** when broadcasting a reduction back.
 10. **Wrap mask conditions in parens:** `(a > 0) & (a < 5)`.
-11. **Verify dtypes after cleanup.** `df.dtypes` is the cheapest sanity check.
-12. **Cast strings to numeric early** with `pd.to_numeric(errors='coerce')`.
-13. **Match `*` for elementwise, `@` for matmul.** Silent bugs otherwise.
-14. **Don't use `df.col` if the name has spaces / special chars** — use `df['col']`.
+11. **Match `*` for elementwise, `@` for matmul.** Silent bugs otherwise.
 
 ### Workflow
 
-15. **Always start with `.shape`, `.info()`, `.head()`** when handed a new dataset.
-16. **Standardize column names** early (rename) — saves typos and shame.
-17. **Use `pd.read_csv(thousands=',', na_values=['N','NEW','-'])`** to clean at load time.
-18. **Save intermediate cleaned data** with `.to_csv` or `np.save` — cleaning is wasteful to repeat.
-19. **One-step `.loc` assignment** to avoid `SettingWithCopyWarning`.
-20. **Method-chain cleanly:** `df.rename(...).assign(...).query(...)` reads better than mutating `inplace`.
+12. **Save intermediate data** with `np.save` — recomputation is wasteful.
+13. **Set a `np.random.seed`** when generating reproducible test arrays.
 
 ### Interview-day reminders
 
-21. **Walk through dimensions out loud.** "Shape `(5, 2)` — 5 rows, 2 columns."
-22. **Right-align shapes** for broadcasting questions — on paper if needed.
-23. **Axis mnemonic: "axis 0 disappears = one per column"**.
-24. **For view/copy: basic slice = view, fancy/boolean = copy.** Memorize the trio.
-25. **When unsure, show you'd test it.** Quoting `np.shares_memory(a, b)` or `arr.base` signals senior judgment.
+14. **Walk through dimensions out loud.** "Shape `(5, 2)` — 5 rows, 2 columns."
+15. **Right-align shapes** for broadcasting questions — on paper if needed.
+16. **Axis mnemonic: "axis 0 disappears = one per column"**.
+17. **For view/copy: basic slice = view, fancy/boolean = copy.** Memorize the trio.
+18. **When unsure, show you'd test it.** Quoting `np.shares_memory(a, b)` or `arr.base` signals senior judgment.
 
 [🔝 Back to top](#top)
 
@@ -1061,6 +1003,10 @@ Crystallized do's and don'ts from all four modules.
 | 1 | Food Delivery Data Exploration and analysis 1 | ML motivation, EDA, lists vs arrays, why NumPy fast, array creation, shape/dtype, type coercion, astype, indexing, slicing | §1, plus the full [NumPy_EDA_Interview_Prep_Guide](./Food%20Delivery%20Data%20Exploration%20and%20analysis%201/NumPy_EDA_Interview_Prep_Guide.md) |
 | 2 | Food Delivery Data Exploration and analysis 2 | `np.arange`, fancy indexing, boolean masking, 2D reshape, axis & aggregations, `np.where`/`any`/`all`, sort/argsort, matrix multiply | §2 |
 | 3 | Food Delivery Data Exploration and Analysis 3 | Vectorization, broadcasting (4 rules), `np.tile`, `split`/`hsplit`/`vsplit`/`array_split`, `vstack`/`hstack`/`concatenate`/`stack` | §3 |
-| 4 | Food Delivery Data Exploration and analysis 4 | Pandas intro — Series, DataFrame, `read_csv`, `.iloc`/`.loc`, `set_index`/`reset_index`, `.info()`/`.describe()`, column ops, rename, `astype`, `pd.to_numeric`, `.str` accessor, `replace`, `unique`/`nunique`/`value_counts`, `to_csv` | §4 |
+| 4 | Food Delivery Data Exploration and analysis 4 | Pandas intro — Series, DataFrame, `read_csv`, `.iloc`/`.loc`, `set_index`/`reset_index`, `.info()`/`.describe()`, column ops, rename, `astype`, `pd.to_numeric`, `.str` accessor, `replace`, `unique`/`nunique`/`value_counts`, `to_csv` | → [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md) |
+| 5 | Amazon sales data analysis 1 | Joins (`pd.merge`, inner/outer/left/right), groupby (single/multi key, agg), filter/apply on groups, sorting, duplicates, `.concat`, `.apply` (row/column/lambda), `.isnull().sum()` | → [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md) §1 |
+| 6 | Amazon sales data analysis 2 | Missing values (`isna`/`dropna`/`fillna`), `pd.melt`/`pivot_table`, `pd.cut` binning, `.str.contains`/`.str.extract`, `pd.to_datetime` & `.dt` accessor, univariate viz (hist/count) | → [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md) §2 |
+| 7 | Amazon sales data analysis 3 | Bivariate viz (scatter/line/box/violin/grouped bar), multivariate viz (pairplot/heatmap/stacked), `.corr()`, hue & subplots | → [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md) §3 |
+| 8 | Analyzing Sachin Tendulkar's ODI Career | Probability fundamentals (sample space, events, set ops), addition/multiplication/complement rules, marginal vs joint, conditional probability, Bayes' Theorem — computed empirically via pandas boolean filtering | → [`Amazon_Sachin_EDA_Revision_Guide.md`](./Amazon_Sachin_EDA_Revision_Guide.md) §4 |
 
 [🔝 Back to top](#top)
