@@ -8,7 +8,8 @@
 - 🐼 [`Pandas_Revision_Guide.md`](./Pandas_Revision_Guide.md) — Pandas basics (Series, DataFrame, `iloc`/`loc`, cleanup)
 
 **How to use:**
-- **Pre-interview:** scan the [🚀 Topic finder](#topic-finder) → open the relevant module → drill the Q&A.
+- **First-time learning a concept:** open the module's **📖 Guided concept walkthrough** ([M1](#1g-guided) · [M2](#2g-guided) · [M3](#3g-guided) · [M4](#4g-guided)). Each concept is introduced *what → why → how → where → related → code → gotcha* — beginner-friendly, no follow-up search needed.
+- **Pre-interview:** scan the [🚀 Topic finder](#topic-finder) → open the relevant module → use the recap cheat sheet + drill the Q&A.
 - **Just before a coding round:** run the [§14 Drill](#14-drill) end-to-end.
 - **For per-notebook depth:** see the notebook in each `G -Amazon sales data analysis N/` or `G-Analyzing Sachin Tendulkar's ODI Career/` folder.
 
@@ -28,6 +29,7 @@
 
 | Need to revise… | Go to |
 |---|---|
+| 📖 First-time intro to a concept (what / why / how / where / related) | [M1 walkthrough](#1g-guided), [M2 walkthrough](#2g-guided), [M3 walkthrough](#3g-guided), [M4 walkthrough](#4g-guided) |
 | `iloc`/`loc` for rows + columns, conditional updates | [Module 1](#1-module1) |
 | Duplicates (`duplicated`/`drop_duplicates`, `keep`, `subset`) | [Module 1](#1-module1) |
 | Aggregate functions (`sum`/`mean`/`agg`), sorting (multi-col) | [Module 1](#1-module1) |
@@ -65,10 +67,10 @@
 
 ## 📑 Table of contents
 
-1. [Module 1 — Joins, GroupBy, Apply (Amazon 1)](#1-module1)
-2. [Module 2 — Missing Data, Reshape, Strings, DateTime, Univariate Viz (Amazon 2)](#2-module2)
-3. [Module 3 — Bivariate & Multivariate Visualization (Amazon 3)](#3-module3)
-4. [Module 4 — Probability via Pandas (Sachin Tendulkar ODI)](#4-module4)
+1. [Module 1 — Joins, GroupBy, Apply (Amazon 1)](#1-module1) · [📖 Guided walkthrough](#1g-guided)
+2. [Module 2 — Missing Data, Reshape, Strings, DateTime, Univariate Viz (Amazon 2)](#2-module2) · [📖 Guided walkthrough](#2g-guided)
+3. [Module 3 — Bivariate & Multivariate Visualization (Amazon 3)](#3-module3) · [📖 Guided walkthrough](#3g-guided)
+4. [Module 4 — Probability via Pandas (Sachin Tendulkar ODI)](#4-module4) · [📖 Guided walkthrough](#4g-guided)
 5. [📚 Terms glossary](#5-terms)
 6. [⚙️ API cheat sheet](#6-apis)
 7. [⚠️ Gotchas & traps](#7-gotchas)
@@ -95,6 +97,349 @@
 **Split-apply-combine.** GroupBy is three steps disguised as one method: **split** the table into bins by some key, **apply** a function inside each bin independently, **combine** the per-bin results into a Series or DataFrame. Hold that 3-step picture and every confusion about `.agg` vs `.transform` vs `.filter` vs `.apply` resolves to "what does each step return?" — `.agg` collapses each group to one row; `.transform` returns the same shape as input; `.filter` keeps/drops whole groups; `.apply` is the escape hatch when nothing else fits.
 
 For **joins**, the mental model is the SQL Venn diagram: inner = ∩, outer = ∪, left = all of left + matches from right, right = mirror.
+
+<a id="1g-guided"></a>
+### 📖 Guided concept walkthrough
+
+> Beginner-first introduction of every Module 1 concept. Read this top-to-bottom on a first pass; the cheat sheet below is the recap surface. The depth here is on purpose — these are the concepts FAANG pandas rounds rely on.
+
+#### `pd.merge` — joining two tables on a key
+
+> **🪜 Mental model:** *SQL JOIN, written in pandas.* Two tables share a column (a key); `merge` lines them up row-by-row so you get one combined table with all the matching information side-by-side.
+
+**What it is.** `pd.merge(left, right, on='key', how='inner')` is the pandas equivalent of SQL's `JOIN`. It takes two DataFrames, finds rows where a shared column (the **key**) matches, and produces a new DataFrame with columns from both. The `how=` parameter (one of `'inner'`, `'outer'`, `'left'`, `'right'`) decides which rows survive when the key matches in one table but not the other.
+
+**Why it matters.** Real data lives in many tables — orders in one, products in another, users in a third. To answer "what's the average rating per category?", you must first join the order table to the product table. Joins are the most-asked pandas/SQL interview topic at Amazon, Meta, Airbnb because almost every analysis starts with one. Getting `how=` wrong silently drops or duplicates rows.
+
+**How it works.**
+1. Pandas builds a hash table of keys from one side (whichever is smaller).
+2. It scans the other side, looks up each row's key in the hash table.
+3. For every match, it emits a combined row with columns from both sides.
+4. The `how=` parameter decides what to do with non-matches:
+   - `inner` — drop them.
+   - `outer` — keep both sides, NaN-fill the missing columns.
+   - `left` / `right` — keep one side fully, NaN-fill the other.
+5. Duplicate keys multiply: 3 matches on the left × 4 on the right → 12 output rows.
+
+**Where it's used.** Joining orders to products, users to events, transactions to accounts. In sklearn pipelines, you usually `merge` before `fit` so every example has its label and features attached. StrataScratch Amazon questions almost always start with a merge.
+
+**Related terms.**
+- **Inner / outer / left / right join** — the four `how=` modes (see each below).
+- **`pd.concat`** — the no-key cousin; just stacks rows or columns without matching on anything.
+- **Key** — the shared column you join on; pass via `on=` (same name on both sides) or `left_on=`/`right_on=` (different names).
+- **`validate='1:1' / '1:m' / 'm:1' / 'm:m'`** — pandas guard that raises if the join is not the cardinality you expected. Use to catch row explosions.
+- **SQL `JOIN`** — the database-side version; semantics are identical.
+
+```python
+pd.merge(orders, products, on='product_id', how='inner')
+# only orders where product_id matches a row in products
+```
+
+**Gotcha.** Calling `pd.merge(a, b)` with no `on=` silently joins on **every** shared column name — almost always wrong on real data. Always pass `on=` explicitly.
+
+#### Inner join (`how='inner'`)
+
+> **🪜 Mental model:** *The intersection — only the overlap survives.* Keep rows where the key exists on **both** sides; drop everything else.
+
+**What it is.** An inner join is `pd.merge(a, b, on='k', how='inner')`. Only rows whose key value appears in **both** `a` and `b` are kept. It's the default `how=`, and it's the smallest possible result of a merge.
+
+**Why it matters.** Inner is the "I want only complete records" mode. If you're computing per-customer revenue and a customer has no matching record in the products table, inner drops them — which is usually correct because you can't compute revenue for them. The flip side: inner silently loses rows, so if you expected `len(a)` outputs but got fewer, you might have an inner join eating data.
+
+**How it works.** Pandas finds the **intersection** of key values present in both tables, then emits one output row per matching pair. If `a` has 3 rows with `id=5` and `b` has 2 rows with `id=5`, you get 6 output rows (`3 × 2` Cartesian product within that key).
+
+**Where it's used.** "Show me only orders with valid products." "Show me users who also signed up for newsletter." Default in SQL `SELECT a JOIN b ON a.id = b.id`. Used in feature pipelines when you only want examples that have *every* feature available.
+
+**Related terms.**
+- **Outer join** — the opposite: keep all rows from both sides.
+- **Left/right join** — keep one side fully even on no match.
+- **Set intersection** — the mathematical concept inner join implements on keys.
+- **Cartesian product / row explosion** — what happens when both sides have duplicates of a key.
+
+```python
+pd.merge(orders, products, on='product_id', how='inner')
+# size ≤ min(len(orders), len(products)) when keys are unique
+```
+
+**Gotcha.** Inner is silent: it drops mismatched rows without warning. Always print `len(result)` and compare to `len(left)` to know what got eaten.
+
+#### Outer join (`how='outer'`)
+
+> **🪜 Mental model:** *The union — keep everyone, NaN-fill where missing.* Every key value from either side appears in the result; missing columns get filled with NaN.
+
+**What it is.** An outer (a.k.a. full outer) join is `pd.merge(a, b, on='k', how='outer')`. Every key value that appears in **either** table contributes a row to the output. When a row has no match on the other side, the columns from that side come back as `NaN`.
+
+**Why it matters.** Outer is the "I want to see what's missing" mode — it surfaces rows that don't have a match, which is exactly what you want during data audits ("which orders have no matching product? which products have no orders?"). It's the biggest possible result.
+
+**How it works.** Pandas takes the **union** of key values from both tables. For each key, if both sides have it, you get the matched-pair rows (same as inner). If only one side has it, you get one row with the absent side's columns set to `NaN`. Pandas can optionally tag each row with an `_merge` column (via `indicator=True`) telling you which side(s) the row came from.
+
+**Where it's used.** Data-quality audits ("show me missing on either side"). Reporting where every customer should appear even if they have no orders. Pre-modelling sanity check: outer + `indicator=True` is the standard "did my join lose anyone?" debugging trick.
+
+**Related terms.**
+- **Inner join** — the opposite: keep only matches.
+- **Left / right join** — keep one side fully; outer keeps both.
+- **`indicator=True`** — adds an `_merge` column with values `left_only`, `right_only`, `both`.
+- **Set union** — the mathematical concept outer join implements on keys.
+
+```python
+pd.merge(orders, products, on='product_id', how='outer', indicator=True)
+# inspect result['_merge'].value_counts() to see what came from where
+```
+
+**Gotcha.** Outer produces NaN columns wherever a side is missing — those NaNs propagate through subsequent math (`mean()`, `sum()`) unless you handle them.
+
+#### Left join (`how='left'`)
+
+> **🪜 Mental model:** *Keep all of the left table; bolt on info from the right where it matches.* The left table is the source of truth; the right is decoration.
+
+**What it is.** A left join is `pd.merge(a, b, on='k', how='left')`. **Every** row of `a` appears in the output. Where `b` has a matching key, its columns are filled in; where it doesn't, those columns are `NaN`. The output has at least `len(a)` rows (more if `b` has duplicate keys).
+
+**Why it matters.** Left is the most-used join in practice because it preserves the row set you started with — your "fact table" stays whole and you just enrich it with attributes. If you're computing metrics per order, you want one row per order at the end, never to lose one. Pre-modelling: left-join your label table to your feature table so every label row gets feature columns.
+
+**How it works.** For each row in `a`, look up its key in `b`. If a match exists, emit one combined row per match (multiple matches → multiple output rows). If no match, emit one row with `b`'s columns as `NaN`. Order from `a` is preserved.
+
+**Where it's used.** "Orders enriched with product info." "Users enriched with their last-known event." Almost every "report" query in analytics. In SQL, `LEFT JOIN` is the most common JOIN type for the same reason.
+
+**Related terms.**
+- **Right join** — mirror image: keep all of right.
+- **Inner join** — drops left rows that don't match; left preserves them.
+- **Outer join** — also keeps right-only rows; left does not.
+- **`validate='m:1'`** — pandas guard for "left has many, right has at most one"; raises on right-side duplicates that would explode rows.
+
+```python
+pd.merge(orders, products, on='product_id', how='left')
+# len(result) >= len(orders); equality only when right has no duplicate keys
+```
+
+**Gotcha.** "Left join, so result has `len(orders)` rows" is **wrong** when the right side has duplicate keys — duplicates on the right explode left rows (1 left × 3 right matches → 3 output rows).
+
+#### Right join (`how='right'`)
+
+> **🪜 Mental model:** *Mirror of left join.* Keep all of the **right** table, fill left columns with NaN on no match.
+
+**What it is.** A right join is `pd.merge(a, b, on='k', how='right')` — semantically equivalent to swapping the arguments and doing a left join. Every row in `b` appears in the output, decorated with matching columns from `a` (NaN-filled where no match).
+
+**Why it matters.** Right join exists for completeness; in practice you'll almost never write one — people prefer to swap the argument order and write `how='left'` instead, because reading "left join" left-to-right matches reading the code left-to-right. Knowing it exists is mostly an interview vocabulary check.
+
+**How it works.** Same algorithm as left join but with the roles flipped — pandas iterates over `b` and looks up keys in `a`. Output row count ≥ `len(b)`.
+
+**Where it's used.** Rare in practice. Sometimes used inside macros/abstractions where you can't reorder arguments. Some SQL dialects (legacy) reserve `RIGHT JOIN` for symmetry with `LEFT JOIN`.
+
+**Related terms.**
+- **Left join** — the more idiomatic mirror of this.
+- **"Swap and left-join"** — the canonical rewrite that makes code readable.
+
+```python
+pd.merge(orders, products, on='product_id', how='right')
+# == pd.merge(products, orders, on='product_id', how='left')
+```
+
+**Gotcha.** Two writers of the same query will disagree on argument order. Prefer `how='left'` and put your "source of truth" table on the left; you'll never need `how='right'`.
+
+#### `groupby` — split-apply-combine
+
+> **🪜 Mental model:** *Sort into bins, do a thing in each bin, glue the answers back.* GroupBy splits the DataFrame into one mini-DataFrame per unique key value, runs a function inside each, and stitches the results.
+
+**What it is.** `df.groupby('key')` returns a lazy `GroupBy` object — no work happens yet. You then call an aggregation (`.mean()`, `.sum()`, `.agg()`), a transform (`.transform()`), a filter (`.filter()`), or `.apply()` on it to trigger the work. The output type depends on which operation you used. The whole pattern is named **split-apply-combine** (after Hadley Wickham's paper).
+
+**Why it matters.** Group-level analytics — "average rating per category", "total revenue per region", "max temperature per day" — are the bread and butter of EDA and reporting. Every SQL `GROUP BY` query maps directly to a pandas `groupby`. FAANG SQL/pandas rounds almost always include at least one.
+
+**How it works.**
+1. **Split** — pandas sorts the rows into bins, one per unique value of the grouping key (or one per unique combination if you pass multiple keys).
+2. **Apply** — your function runs inside each bin, independently.
+3. **Combine** — pandas glues the per-bin results into a Series or DataFrame, indexed by the group keys.
+
+The return shape depends on what you applied:
+- `.agg()` → one row per group (collapses).
+- `.transform()` → same shape as the input (no collapse, but each row gets its group's value).
+- `.filter()` → returns rows of the original DataFrame whose group passed a predicate.
+- `.apply()` → escape hatch; returns whatever your function returns.
+
+**Where it's used.** SQL `GROUP BY` translations. Per-cohort metrics ("conversion rate per signup-month"). Feature engineering ("rolling-mean per customer"). In sklearn, `cross_val_score` uses an internal group-aware split when you pass `groups=`.
+
+**Related terms.**
+- **`.agg()`** — the collapsing operation (see below).
+- **`.transform()`** — same-shape return (e.g., subtract group mean).
+- **`.filter()`** — keep/drop whole groups based on a predicate.
+- **`.apply()`** — most general; slowest.
+- **`pivot_table`** — closely related; combines groupby + reshape in one step.
+- **MultiIndex** — what you get when grouping by multiple keys.
+
+```python
+df.groupby('category')['rating'].mean()
+# Series indexed by category → average rating per category
+```
+
+**Gotcha.** `df.groupby('k')` is *lazy* — it returns a GroupBy object, not a DataFrame. Printing it shows `<pandas.core.groupby...>` and that confuses beginners. Chain an aggregation to materialise.
+
+#### `agg` — named aggregations, multiple at once
+
+> **🪜 Mental model:** *Apply many summary functions in one call.* Instead of computing `.mean()`, `.max()`, `.std()` separately, pass them all to `agg` and get a tidy table.
+
+**What it is.** `.agg()` accepts a list, dict, or named-aggregation spec and returns one row per group with one column per requested aggregation. List form (`agg(['mean', 'max'])`) gives generic column names. Dict form (`agg({'price': 'mean', 'rating': 'max'})`) lets you specify per-column functions. Named-aggregation form (`agg(avg_price=('price', 'mean'))`) gives you control over both the source column and the output name.
+
+**Why it matters.** Real reports always need multiple stats per group ("mean, min, max revenue per region"). Doing them with three separate groupbys is wasteful — `agg` does them in one pass over the data. The named-aggregation form is the pandas-recommended pattern and is what FAANG interviews expect today (post-pandas 0.25).
+
+**How it works.** Pandas iterates over each group once, applies every aggregator to every requested column, and assembles the result. Output is a DataFrame with the group key(s) as the index and one column per `(column, function)` pair. With named aggregations, you control the output column name explicitly.
+
+**Where it's used.** Every "summary report" query. Building feature tables (per-user stats: count, mean, std of past orders). Pre-modelling diagnostics ("describe per class").
+
+**Related terms.**
+- **Named aggregation** — the `output_name=('column', 'func')` syntax; preferred over dict syntax for readability.
+- **`.describe()`** — `agg` with a fixed canonical list (count/mean/std/min/quartiles/max).
+- **`.transform()`** — like `agg` but returns same-shape data instead of collapsing.
+- **`.apply()`** — fallback when your aggregator is too custom for `agg`.
+
+```python
+df.groupby('category').agg(
+    avg_price=('price', 'mean'),
+    max_rating=('rating', 'max'),
+    n=('product_id', 'count'),
+)
+```
+
+**Gotcha.** Old-style dict-of-dicts syntax (`agg({'price': {'avg': 'mean'}})`) is deprecated. Use named aggregations instead.
+
+#### `apply` — row-wise / column-wise / per-group function
+
+> **🪜 Mental model:** *The escape hatch.* When no built-in does what you want, hand pandas a Python function and let it run on each row, column, or group.
+
+**What it is.** `.apply(fn)` runs your function `fn` on every element of a Series, every row/column of a DataFrame, or every group of a GroupBy. Direction is set by `axis=` (DataFrame only): `axis=0` (default) applies per column (each column passed as a Series); `axis=1` applies per row (each row passed as a Series with the column names as keys).
+
+**Why it matters.** `apply` is the universal hammer — anything you can do in Python, you can wrap in `apply`. But it's also slow because it usually runs a Python-level loop, breaking pandas' compiled-C path. Interviewers love asking "is this fast?" precisely because beginners reach for `apply` when a vectorized op would be 100× faster.
+
+**How it works.**
+1. **Series.apply(fn)** — `fn` is called once per element; output is a Series of the same length.
+2. **DataFrame.apply(fn, axis=0)** — `fn` is called once per column (each column passed as a Series).
+3. **DataFrame.apply(fn, axis=1)** — `fn` is called once per row (each row passed as a Series).
+4. **GroupBy.apply(fn)** — `fn` is called once per group, receiving the group's DataFrame; output can be a scalar, Series, or DataFrame.
+
+In every case, pandas glues the per-call results back into a Series, DataFrame, or grouped object.
+
+**Where it's used.** Custom row-level features (`row.actual - row.discount`). Multi-column string cleaning. Any "I'd write a Python for-loop here" moment. In groupby, `apply` is the catch-all when `agg` and `transform` can't express what you need.
+
+**Related terms.**
+- **`np.vectorize`** — looks vectorized but is also a Python loop internally; no faster than `apply`.
+- **`.map()`** — element-wise like `Series.apply` but slightly different semantics (also supports dicts for replacement).
+- **`.transform()`** — like `apply` on a group but constrained to return same-shape data.
+- **Vectorization** — the *fast* alternative; uses array math, `np.where`, `.str.*`.
+
+```python
+df['discount_pct'] = df.apply(
+    lambda r: (r['actual_price'] - r['discounted_price']) / r['actual_price'] * 100,
+    axis=1,
+)
+# Row-wise: r is a Series with column names as keys.
+```
+
+**Gotcha.** `axis=1` does NOT mean "vectorized across rows" — it means "Python function called once per row." For numeric work, a vectorized expression (`(df['a'] - df['b']) / df['a']`) is dramatically faster.
+
+#### `sort_values` — sort rows by one or more columns
+
+> **🪜 Mental model:** *ORDER BY in pandas.* Reorders rows by the values of one or more columns; doesn't change which rows exist, only their order.
+
+**What it is.** `df.sort_values(by='col')` returns a new DataFrame with rows reordered by the values in `col`. With a list of columns (`by=['a', 'b']`), pandas sorts by `a` first, breaks ties using `b`. The `ascending=` parameter controls direction and accepts a list when `by` is a list (one bool per column).
+
+**Why it matters.** Top-N analysis ("top 10 products by revenue"), trend analysis, and any chronological inspection start with a sort. SQL `ORDER BY` maps directly here. Sorting also matters before `.head()` / `.tail()` — without an explicit sort, those return arbitrary rows.
+
+**How it works.** Pandas uses a stable, NumPy-backed sort under the hood (Timsort for object dtypes, quicksort variant for numerics). NaNs go to the end by default (`na_position='last'`); pass `na_position='first'` to flip. By default it returns a new DataFrame; pass `inplace=True` to mutate.
+
+**Where it's used.** Every "top N by X" query. Pre-aggregation ordering ("most-recent first"). Before computing rank, percentile, or cumulative quantities. Plot preparation (line plots need x-axis in order).
+
+**Related terms.**
+- **`sort_index()`** — sort by the index instead of a column.
+- **`nlargest(n, 'col')` / `nsmallest`** — faster than `sort_values(...).head(n)` for top-N because it doesn't sort the whole table.
+- **`rank()`** — closely related; assigns rank numbers based on sort order.
+- **Stability** — a stable sort preserves tie-breaker order from the previous sort; pandas' sort is stable by default.
+
+```python
+df.sort_values(by=['votes', 'rating'], ascending=[False, True])
+# Most votes first; ties broken by lowest rating
+```
+
+**Gotcha.** Length mismatch: if `by` is a single column, `ascending` must be a scalar bool, not a list. `ascending=[True]` with `by='col'` raises `ValueError`.
+
+#### Duplicates — `duplicated` and `drop_duplicates`
+
+> **🪜 Mental model:** *Find repeats, then decide.* `duplicated()` tells you **which** rows are duplicates (boolean mask); `drop_duplicates()` actually removes them.
+
+**What it is.** `df.duplicated(subset=None, keep='first')` returns a boolean Series — True where the row's values (in the given subset of columns) have appeared earlier. `df.drop_duplicates(subset=None, keep='first', inplace=False)` returns a new DataFrame with duplicates removed. The `keep=` parameter chooses which copy to keep: `'first'` (default), `'last'`, or `False` (drop **all** copies).
+
+**Why it matters.** Duplicates corrupt every downstream metric — `count()` is wrong, joins explode, group-bys double-count. Almost every messy CSV has accidental dupes (multiple ETL runs, manual edits). The very first cleanup step on real data is checking for them.
+
+**How it works.**
+1. Pandas computes a hash of each row (using `subset=` columns if given, else all columns).
+2. Walks the rows; on each row, checks whether its hash has been seen before.
+3. With `keep='first'`, the first occurrence is marked False (not a dup); all later ones are True.
+4. With `keep=False`, *every* row that has any duplicate is marked True — useful when you want to inspect or remove all members of duplicated groups.
+
+**Where it's used.** Data-quality audit: `df.duplicated().sum()` as the very first sanity check. Deduping orders that ran through ETL twice. Cleaning a join result where the join key wasn't unique.
+
+**Related terms.**
+- **`subset=`** — limit which columns count toward "duplicate." Without it, all columns are compared.
+- **`keep='first' / 'last' / False`** — which copy to keep; `False` drops them all.
+- **`nunique()` vs `count()`** — using these to detect duplicates without explicitly listing.
+- **`validate=` on `merge`** — pre-emptive duplicate guard at join time.
+
+```python
+df.duplicated(subset=['name', 'votes']).sum()              # how many dupes?
+df = df.drop_duplicates(subset=['name', 'votes'], keep='first')
+```
+
+**Gotcha.** `drop_duplicates` returns a new DataFrame by default — `df.drop_duplicates()` alone has no effect; you must reassign or pass `inplace=True`.
+
+#### `pd.concat` — stack DataFrames with no key alignment
+
+> **🪜 Mental model:** *Stack the boxes.* Glue DataFrames together vertically (more rows) or horizontally (more columns), without trying to match on a key.
+
+**What it is.** `pd.concat([a, b], axis=0)` stacks DataFrames row-wise (more rows; columns must match by name); `axis=1` stacks them column-wise (more columns; aligned by index). Unlike `merge`, there's no key — concat is a positional / index-based operation, not a relational one.
+
+**Why it matters.** When you have multiple files of the same schema (one CSV per month), you `concat` them into one big DataFrame for analysis — there's no key to join on, you just want them stacked. Confusing `concat` with `merge` is one of the top pandas interview traps; they answer different questions.
+
+**How it works.**
+1. **`axis=0` (row-wise)** — pandas takes the union of column names across the inputs, lines them up, and stacks rows. Missing columns get NaN.
+2. **`axis=1` (column-wise)** — pandas aligns on the **index** (not on values), then sticks columns side by side. Rows whose index appears in only one DataFrame get NaN on the other side.
+3. `ignore_index=True` resets the row index to a fresh 0..n-1 (essential when stacking — otherwise indexes collide).
+
+**Where it's used.** Combining monthly CSV files. Appending new rows (single-row DataFrame + `concat` is the idiomatic replacement for the deprecated `.append()`). Side-by-side comparison of multiple summary tables.
+
+**Related terms.**
+- **`pd.merge`** — the keyed cousin; aligns on a column value, not on index position.
+- **`ignore_index=True`** — reset row index after stacking.
+- **`.append()`** — deprecated; use `concat` for the same purpose.
+- **`axis=0` vs `axis=1`** — rows vs columns; same axis convention as NumPy.
+
+```python
+combined = pd.concat([jan_df, feb_df, mar_df], axis=0, ignore_index=True)
+# All three months stacked; index renumbered 0..N
+```
+
+**Gotcha.** `concat([a, b], axis=1)` aligns on the **index**, not on rows in position. If `a` and `b` were sorted differently, you'll get scrambled (NaN-filled) pairings. Reset the index first if you want positional alignment.
+
+#### `isnull` / `isna` — count missing cells
+
+> **🪜 Mental model:** *Missing-value detector.* Returns a boolean DataFrame the same shape as the input — True where the cell is `NaN` / `None` / `NaT`.
+
+**What it is.** `df.isnull()` and `df.isna()` are **identical** — pandas exposes both names for readability. Each returns a same-shape boolean DataFrame where True marks a missing value. The idiomatic next step is `.sum()` to count missing per column: `df.isna().sum()`.
+
+**Why it matters.** "How much missing data?" is the single most-asked EDA question. Models don't accept NaN by default (sklearn raises), so you must quantify and handle every NaN before training. The `.isna().sum()` idiom is so common it's basically the second line of every EDA notebook.
+
+**How it works.** Pandas treats three things as "missing": `np.nan` (float NaN), Python `None`, and `pd.NaT` (Not-a-Time, for datetime columns). `.isna()` walks the data and marks each cell True/False against this set. Pandas-2 nullable dtypes (`Int64`, `Float64`, `boolean`, `string`) also use `pd.NA` as the missing sentinel and `.isna()` catches it.
+
+**Where it's used.** The first sanity check on any new dataset (`df.isna().sum()`). Picking imputation strategy per column (drop if rare, fill with mean/median/mode if recoverable). Building a "missingness mask" feature for tree models that benefit from knowing a value was missing.
+
+**Related terms.**
+- **`notna()` / `notnull()`** — opposite mask (True where present).
+- **`fillna()`** — replace missing with a constant or computed value.
+- **`dropna()`** — remove rows/cols that have missing values.
+- **`NaN`** — float-only sentinel; legal in float dtype, not in int.
+- **`NaT`** — datetime version of NaN.
+
+```python
+df.isna().sum().sort_values(ascending=False)
+# Per-column NaN count, biggest offender first
+```
+
+**Gotcha.** `isna()` does NOT catch the **string** `'NaN'`, `'None'`, or `''` — those are real strings, not missing. Convert with `pd.to_numeric(..., errors='coerce')` first to surface them.
 
 ### 🪞 Basic → Intermediate → Advanced — `groupby`
 
@@ -140,27 +485,27 @@ pd.merge(orders, products)                    # silently joins on every shared c
 pd.merge(orders, products, on='product_id', validate='m:1')   # raises if rhs has duplicate keys
 ```
 
-### 🧠 Concept cheat sheet
+### 🧠 Concept cheat sheet (recap)
 
-| Concept | One-liner |
-|---|---|
-| `df.iloc[i:j, m:n]` | Position-based rectangular slice |
-| `df.loc[mask, 'col'] = v` | Single-step conditional update (avoids `SettingWithCopyWarning`) |
-| `df.duplicated(keep='first'/'last'/False)` | Boolean mask of duplicate rows |
-| `df.drop_duplicates(subset=[...], keep='first')` | Remove duplicates by some/all columns |
-| `df['col'].agg([...])` | Multiple aggregations in one call |
-| `df.sort_values(by, ascending)` | Sort by 1+ columns; `ascending` can be a list |
-| `pd.concat([a, b], axis=0/1)` | Stack rows or columns — does NOT align on a key |
-| `pd.merge(a, b, on='id', how='inner')` | Align on a key — SQL-style join |
-| Join types | inner (∩), outer (∪), left (all left), right (all right) |
-| `df['col'].apply(fn)` | Element-wise function on a Series |
-| `df.apply(fn, axis=1)` | Function applied to each ROW (row passed as Series) |
-| `df.apply(fn, axis=0)` | Function applied to each COLUMN (default) |
-| `df.isnull().sum()` | Per-column NaN audit |
-| `df.groupby('k')` | Lazy: defines splits; aggregate to collapse |
-| `df.groupby('k')['c'].agg(['max','min'])` | Multiple aggs per group |
-| `df.groupby('k').filter(fn)` | Keep ROWS belonging to groups that pass `fn` |
-| `df.groupby('k').apply(fn)` | Custom per-group transform / aggregation |
+> Recap table — every row 2–3 lines: *what it is + when you reach for it*. Full definitions are in [the guided walkthrough above](#1g-guided).
+
+| Concept | What it is | When you use it |
+|---|---|---|
+| **`pd.merge`** | SQL-style JOIN on a shared key column. `how=` controls which side's non-matching rows survive (inner/outer/left/right). | Whenever data lives in two tables that share an ID — orders+products, users+events. The first step of almost every analysis. |
+| **Inner join** | Keep only rows whose key matches on **both** sides; drop everything else. Result ≤ min(left, right). | When you want only "complete" records and don't care about orphans. SQL default. |
+| **Outer join** | Keep **every** key from either side; NaN-fill columns where the other side has no match. Result = union of keys. | Data-quality audits ("what's missing on either side?"). Combine with `indicator=True` to see where rows came from. |
+| **Left join** | Keep **all** of left; bolt on matching info from right (NaN where no match). Result ≥ len(left). | The most common join in practice — "enrich my fact table with attributes." |
+| **Right join** | Mirror of left — keep all of right. Rare; usually rewritten as "swap args and use `how='left'`." | Almost never — but FAANG vocab quizzes ask about it. |
+| **`groupby`** | Lazy split-apply-combine: split rows into bins by key, run a function in each bin, glue results back. | Every "per-X" aggregation: per-category mean, per-day count, per-user revenue. Maps 1:1 to SQL `GROUP BY`. |
+| **`agg`** | One call that runs multiple aggregations on one or many columns. Named-aggregation form (`name=('col','fn')`) is preferred. | When a report needs more than one summary stat (mean + max + count). Replaces three separate groupbys. |
+| **`apply`** | Universal escape hatch — runs a Python function per Series element, per DataFrame row/column, or per group. | Custom logic that no built-in covers. **Slow** — use vectorized ops when possible. |
+| **`sort_values`** | `ORDER BY` in pandas — reorders rows by one or more columns; `ascending=` accepts a list when sorting by many. | Top-N analysis, trend prep, plot ordering. Pair with `.head(n)` or use `nlargest` for top-N efficiency. |
+| **`duplicated` / `drop_duplicates`** | `duplicated()` marks repeats with a boolean mask; `drop_duplicates()` removes them. `keep=False` drops every copy. | First sanity check on any new dataset (`df.duplicated().sum()`). Cleanup after a merge with non-unique keys. |
+| **`pd.concat`** | Stack DataFrames vertically (`axis=0`, more rows) or horizontally (`axis=1`, more columns). No key alignment. | Combining monthly CSVs into one. Appending a single new row. Side-by-side comparison of summary tables. |
+| **`isnull` / `isna`** | Identical methods — boolean mask of missing cells. Pair with `.sum()` for per-column NaN count. | The first line of EDA after loading data. Quantifies how much cleanup or imputation is needed. |
+| **`.iloc[i:j, m:n]`** | Position-based rectangular slice; end-exclusive, same as Python slicing. | When you know the row/column **positions**, not their labels. |
+| **`.loc[mask, 'col'] = v`** | Single-step conditional assignment using a boolean mask. Avoids `SettingWithCopyWarning`. | Any "set column X to value V where condition is true." The chained-indexing alternative is buggy. |
+| **`groupby().filter(fn)`** | Keep ROWS belonging to groups whose function returns True. Returns a DataFrame of original rows, not groups. | "Keep only users who placed >5 orders" — filtering at the group level, surfacing original rows. |
 
 ### ⚙️ Top APIs
 
@@ -307,6 +652,335 @@ df.groupby('category').apply(stats, include_groups=False)
 
 For **missing data**, the mental model is **audit before imputing**: `df.isna().sum()` is always the first call. Then decide *per column* — drop if rare and meaningless; impute with mean/median/mode if recoverable; impute with a sentinel (0 for "discount", "Unknown" for category) when missing has business meaning.
 
+<a id="2g-guided"></a>
+### 📖 Guided concept walkthrough
+
+> Beginner-first introduction of every Module 2 concept. The cheat sheet below is the recap surface.
+
+#### Missing values overview — `NaN` in Pandas
+
+> **🪜 Mental model:** *A blank cell with a name.* `NaN` ("Not a Number") is the placeholder pandas writes whenever a value is missing — empty CSV cells, parse failures, missing keys after an outer join.
+
+**What it is.** Missing data appears in pandas as one of three sentinels: `np.nan` (float `NaN`, by far the most common), Python `None`, or `pd.NaT` (Not-a-Time, for datetime columns). All three are caught by `.isna()` / `.isnull()`. Pandas-2's nullable dtypes also use `pd.NA`. Importantly, `NaN` is a **float-only** value — an integer column with missing values gets promoted to float (or to the new nullable `Int64` dtype) to make room for NaN.
+
+**Why it matters.** Real-world data has missing values. Models (sklearn estimators) refuse NaN input and raise. Math on NaN is contagious — `5 + NaN == NaN`, `[1, 2, NaN].mean() == 1.5` (NaN is skipped by default in pandas, but propagates in numpy). Mishandling missing values is the #1 source of subtle EDA bugs.
+
+**How it works.** During parsing (`pd.read_csv`), pandas converts a configurable list of strings (`""`, `"NA"`, `"NULL"`, …) to NaN. After loading, NaN behaves like a normal value for indexing and selection, but most aggregations (`mean`, `sum`, `count`) skip NaN by default (`skipna=True`). Boolean comparisons against NaN return False (`NaN == NaN` is False — use `isna()` instead).
+
+**Where it's used.** EDA's first call after `df.shape` is `df.isna().sum()`. Outer joins, reindex, pivot, and concat all introduce NaN where alignment fails. Before model training, every NaN must either be dropped (`dropna`) or filled (`fillna`).
+
+**Related terms.**
+- **`NaN`** vs **`None`** vs **`NaT`** — three names for "missing"; pandas treats them uniformly.
+- **`pd.NA`** — the new universal missing-value sentinel in pandas-2 nullable dtypes.
+- **`skipna=True`** — default in most pandas aggregations; flip to False to make NaN propagate.
+- **Imputation** — replacing NaN with mean/median/mode/sentinel.
+- **MNAR / MAR / MCAR** — academic taxonomy of *why* values are missing (Missing Not At Random / At Random / Completely At Random); affects which imputation is honest.
+
+```python
+df.isna().sum()                # per-column NaN counts
+df['rating'].mean()            # skips NaN by default
+```
+
+**Gotcha.** `NaN != NaN` returns True (NaN is not equal to itself). Never use `==` to check for missing — use `.isna()`.
+
+#### `isna` / `notna`
+
+> **🪜 Mental model:** *"Is this cell empty?"* — a boolean mask the same shape as your data.
+
+**What it is.** `df.isna()` returns a same-shape boolean DataFrame, True where the cell is missing. `df.notna()` is the opposite — True where the cell has a real value. `isnull` / `notnull` are exact aliases (the names exist for SQL-style readability).
+
+**Why it matters.** Every missing-data workflow starts with these two: count, locate, filter. `df.isna().sum()` per-column is the standard "how clean is my data?" probe. `df[df['col'].notna()]` keeps only rows where a critical column is present.
+
+**How it works.** Pandas walks the DataFrame and checks each cell against the missing-value sentinels (`np.nan`, `None`, `NaT`, `pd.NA`). Returns a boolean DataFrame of the same shape. The result composes naturally with boolean indexing.
+
+**Where it's used.** EDA's per-column NaN audit. Pre-filter before `dropna(subset=…)`. Building a "missing indicator" feature for ML models that can use it.
+
+**Related terms.**
+- **`notna()`** — opposite mask.
+- **`isnull()` / `notnull()`** — exact aliases.
+- **`.any()` / `.all()`** — chain after `isna()` to ask "any NaN in this row/col?" (`df.isna().any(axis=1)`).
+- **`fillna()`** — the next-step partner.
+
+```python
+df.isna().sum()                                    # per-column counts
+df[df['order_ts'].notna()]                         # rows with non-null timestamp
+df.loc[df.isna().any(axis=1)]                      # any row with at least one NaN
+```
+
+**Gotcha.** `isnull` and `isna` are identical — pandas exposes both names; choose one and stay consistent.
+
+#### `dropna` — remove rows/cols with missing data
+
+> **🪜 Mental model:** *Kick out the rows with holes.* `dropna()` removes any row (default) or column that has missing values.
+
+**What it is.** `df.dropna(axis=0, how='any', subset=None, thresh=None, inplace=False)` returns a new DataFrame with rows (or columns) removed based on missing-value rules. Each parameter controls exactly which:
+- **`axis=0`** (default) drops rows; **`axis=1`** drops columns.
+- **`how='any'`** drops if **any** value is NaN; **`how='all'`** drops only if **all** values are NaN.
+- **`subset=[…]`** restricts the NaN check to a subset of columns — drop only when those are missing, ignore NaNs elsewhere.
+- **`thresh=k`** keeps rows that have **at least `k` non-NaN values**; lets you tolerate sparse rows.
+
+**Why it matters.** When missingness is rare and the missing rows aren't recoverable, dropping is the cleanest, most honest fix — you don't add fake values. But blanket `dropna()` can silently delete most of your data if any column is mostly NaN. The four parameters above let you drop precisely.
+
+**How it works.** Pandas builds the NaN mask, applies the rule (any/all/thresh), and returns the surviving rows or columns. By default it returns a new DataFrame; pass `inplace=True` to mutate in place. Order is preserved.
+
+**Where it's used.** Removing rows missing a critical field (`subset=['order_id']`). Pruning columns that are >50% NaN (`axis=1, thresh=len(df)//2`). After parsing dates with `errors='coerce'`, drop rows where the date failed to parse (`subset=['date']`).
+
+**Related terms.**
+- **`fillna()`** — alternative when you don't want to lose rows.
+- **`thresh=k`** — the under-used parameter; the right way to say "keep rows with at most N missing."
+- **`subset=`** — the standard way to drop on one critical column.
+- **`how='any'` vs `how='all'`** — easy-to-confuse modes.
+
+```python
+df.dropna(subset=['order_ts'])                     # drop rows with no timestamp
+df.dropna(axis=1, thresh=len(df) * 0.5)            # drop cols ≥50% missing
+```
+
+**Gotcha.** `df.dropna()` with no args drops a row if **any** column is NaN — on real data that often deletes >90% of rows. Always pass `subset=` or `thresh=`.
+
+#### `fillna` — replace missing with a value
+
+> **🪜 Mental model:** *Patch the holes.* Replace each NaN with a constant, a per-column value, or a value copied from an adjacent row.
+
+**What it is.** `df.fillna(value)` returns a new DataFrame with NaN replaced. The `value` argument can be:
+- A **scalar** (`df.fillna(0)`) — same fill for everything.
+- A **dict** (`df.fillna({'rating': df['rating'].mean(), 'discount': 0})`) — per-column fill, most idiomatic for real data.
+- A **method** — `method='ffill'` carries the previous non-NaN value forward (forward-fill); `method='bfill'` carries the next backward. These are essential for time series. Pandas 2.x has split these into dedicated methods: `df.ffill()` and `df.bfill()`.
+
+**Why it matters.** When you can't drop missing values (too many would die), you impute them. The right strategy depends on the column type and the business meaning: mean/median for numerics, mode or "Unknown" for categories, 0 for "no discount applied", forward-fill for time series gaps. Choosing badly biases every downstream metric.
+
+**How it works.** Pandas walks the data and replaces each NaN according to the rule. With a scalar, every NaN gets the same value. With a dict, only the named columns are filled; others are left as NaN. With `method='ffill'`, pandas remembers the most recent non-NaN value per column and writes it into the NaN cells until a new non-NaN appears.
+
+**Where it's used.** Numeric imputation: `df['rating'].fillna(df['rating'].mean())`. Categorical: `df['cat'].fillna('Unknown')`. Domain default: `df['discount'].fillna(0)`. Time-series gap filling: `df['price'].ffill()`. Production-grade pipelines wrap this in `sklearn.impute.SimpleImputer` so the train-time mean is reused on test data (preventing leakage).
+
+**Related terms.**
+- **`SimpleImputer` (sklearn)** — leak-free version: fit on train, apply to test.
+- **`ffill` / `bfill`** — directional fills for ordered data.
+- **`interpolate()`** — fill NaN with linearly (or otherwise) interpolated values between known points.
+- **Sentinel** — a "magic value" that means "missing on purpose" (0 for "no discount"). Choose carefully — sentinels can be confused with real values.
+
+```python
+df = df.fillna({'rating': df['rating'].mean(), 'discount': 0, 'cat': 'Unknown'})
+df['price'] = df['price'].ffill()                  # forward-fill for time-series
+```
+
+**Gotcha.** `s.fillna(s.mean())` is a **no-op when the entire column is NaN** — `s.mean()` of all-NaN is NaN, so you fill NaN with NaN. Check the column has at least one valid value first.
+
+#### `pd.melt` — wide → long reshape
+
+> **🪜 Mental model:** *Stack many value columns into rows.* If you have a "report-style" table with one column per metric, `melt` rotates those columns into a tall table with one row per (id, metric) pair.
+
+**What it is.** `pd.melt(df, id_vars=[...], value_vars=[...], var_name='variable', value_name='value')` turns a wide table into a long one. Columns listed in `id_vars` stay as-is (they identify the row). Columns in `value_vars` collapse into two new columns: one named by `var_name` (which original column the value came from) and one named by `value_name` (the value itself). The result has many more rows and many fewer columns.
+
+**Why it matters.** Most plotting and grouping libraries (seaborn, sklearn) expect data in **long** form — one row per observation with a "kind" column labelling the metric. Spreadsheet-exported data is usually **wide**. Knowing which direction to reshape (and how) is the single most common pandas-shape question in interviews.
+
+**How it works.** Pandas iterates over each `value_var` column and emits one new row per (row, value_var) pair. If you have 100 rows and 3 value_vars, you get 300 long-form rows. The `id_vars` columns are repeated for each value_var of the same source row.
+
+**Where it's used.** Reshaping monthly columns (`Jan, Feb, Mar`) into a `month` + `value` pair. Preparing data for seaborn (`sns.lineplot(data=long_df, x='month', y='value', hue='metric')`). Tidy-data conversion in any analysis pipeline.
+
+**Related terms.**
+- **`pd.pivot_table`** — the opposite direction (long → wide).
+- **`id_vars`** — identifier columns to keep unchanged.
+- **`value_vars`** — columns to stack; if omitted, every non-id column is melted.
+- **`stack()`** — similar reshape, works on a MultiIndex; lower-level.
+- **Tidy data** — the formal name for "one variable per column, one observation per row." Long form is tidy.
+
+```python
+pd.melt(
+    df,
+    id_vars=['product_id'],
+    value_vars=['actual_price', 'discounted_price'],
+    var_name='price_kind',
+    value_name='price',
+)
+```
+
+**Gotcha.** Forget `value_vars` and pandas melts every non-`id_vars` column, which usually creates a useless mega-tall table. Always specify both.
+
+#### `pd.pivot_table` — long → wide reshape with aggregation
+
+> **🪜 Mental model:** *Excel pivot table in pandas.* Pick rows (`index`), columns (`columns`), values (`values`), and an aggregator (`aggfunc`). Pandas reshapes and summarises in one call.
+
+**What it is.** `pd.pivot_table(df, index='row_var', columns='col_var', values='val_col', aggfunc='mean', fill_value=...)` reshapes long data into a wide grid. Each unique value of `row_var` becomes a row; each unique value of `col_var` becomes a column. At each cell, `aggfunc` (default `mean`) is applied to all matching `val_col` values. Missing combinations come back as NaN unless `fill_value` is set.
+
+**Why it matters.** Pivoting is how you turn raw transaction-level data into report tables ("average rating by category × month"). It's groupby + reshape in one step. In interviews, "produce a per-category-per-month average" is a guaranteed pandas question.
+
+**How it works.** Internally, `pivot_table` is a `groupby(['index', 'columns'])` followed by `agg(aggfunc)` followed by `unstack('columns')` — pandas just packages those three steps. With duplicates, `pivot_table` silently aggregates (because `aggfunc` is defined); its stricter sibling `pivot()` would raise.
+
+**Where it's used.** Cross-tabulation reports. Heatmap inputs (`pivot_table` first, then `sns.heatmap`). Time-series matrices (rows = entity, cols = day, values = metric). Confusion-matrix construction.
+
+**Related terms.**
+- **`pivot()`** — strict version; raises on duplicate (index, columns) pairs. Useful as a sanity check.
+- **`pd.melt`** — opposite direction.
+- **`crosstab()`** — pivot's cousin specialised for counts: `pd.crosstab(row, col)`.
+- **`unstack()` / `stack()`** — lower-level reshape primitives `pivot_table` uses.
+- **`fill_value=0`** — fill missing combinations with 0 instead of NaN (common for count tables).
+
+```python
+pd.pivot_table(
+    df,
+    index='category',
+    columns='month',
+    values='rating',
+    aggfunc='mean',
+    fill_value=0,
+)
+```
+
+**Gotcha.** Don't forget `aggfunc=` — the default is `mean`, which silently produces wrong numbers when you wanted a `sum` or `count`. Always pass `aggfunc=` explicitly to document intent.
+
+#### `pd.cut` / `pd.qcut` — binning continuous values into categories
+
+> **🪜 Mental model:** *Buckets.* Turn a continuous number (price, age, score) into a labelled bucket (Low / Mid / High) so you can group, plot, or model it categorically.
+
+**What it is.** Two functions for binning:
+- **`pd.cut(s, bins, labels=...)`** — bins by **value range**. You pass explicit edges (`[0, 5000, 20000, np.inf]`) and the values fall into the corresponding bins. Bin widths are user-defined; counts per bin can be wildly unequal.
+- **`pd.qcut(s, q, labels=...)`** — bins by **quantile**. You pass a number of equal-count buckets (`q=4` → quartiles) and pandas finds the cut-points so each bin has the same count. Bin widths are unequal; counts are equal.
+
+**Why it matters.** Models and plots often want categorical buckets, not raw continuous values. "Price band" is more interpretable in a report than "$23,847.55". Quantile-based binning (`qcut`) is also a robust way to handle skewed data — equal counts per bin avoids the "all values in bin 1" trap.
+
+**How it works.**
+- `cut` evaluates each value against the bin edges and assigns it to the bin whose range it falls into. Edges are half-open by default — `right=True` (default) makes intervals like `(0, 5000]`.
+- `qcut` first computes the quantile cut-points (e.g., for `q=4` it computes the 25th, 50th, 75th percentiles) and then calls `cut` under the hood.
+
+Both return a pandas `Categorical` Series — efficient, ordered if you set `ordered=True`, and groupby-friendly.
+
+**Where it's used.** Price bands for marketing reports. Age buckets for demographic analysis. Decile or quartile analysis ("what's the top-10% spender doing?"). Feature engineering for tree-based models that can use binned features.
+
+**Related terms.**
+- **`qcut`** vs **`cut`** — quantile-based vs value-based; same return shape.
+- **Categorical dtype** — what binning produces; supports `.cat.categories`, `.cat.codes`.
+- **`right=False` / `include_lowest=True`** — fine-grained control over edge handling.
+- **`labels=False`** — return the bin index (0, 1, 2, …) instead of label strings.
+
+```python
+df['band']    = pd.cut(df['price'], bins=[0, 5_000, 20_000, np.inf], labels=['Low','Mid','High'])
+df['quartile'] = pd.qcut(df['rating'], q=4, labels=['Q1','Q2','Q3','Q4'])
+```
+
+**Gotcha.** `pd.cut` with edges that don't cover the data range produces NaN for the out-of-range values. Use `bins=[0, ..., np.inf]` to be safe.
+
+#### `.str` accessor — `.contains` / `.extract` / `.split` (regex on string columns)
+
+> **🪜 Mental model:** *Vectorised Python string methods.* Instead of looping with `for s in series: s.contains(...)`, use `series.str.contains(...)` — pandas runs the operation on every element at C speed.
+
+**What it is.** The `.str` accessor is a namespace on string Series. The three most-used methods:
+- **`.str.contains(pattern, case=False, na=False)`** — boolean mask: True where the pattern is found. `pattern` is a regex by default (set `regex=False` for literal).
+- **`.str.extract(pattern)`** — pulls regex capture groups into new columns. One capture group → one column; multiple → multiple columns.
+- **`.str.split(sep, expand=True)`** — splits each string on `sep`. With `expand=True`, splits become new columns; without, you get a list per row.
+
+**Why it matters.** Real-world string columns are messy: product names with embedded brand info, URLs with query parameters, addresses with city/state/zip jammed together. Vectorized `.str.*` lets you extract, classify, and clean without writing Python loops — orders of magnitude faster than `.apply(lambda s: ...)`.
+
+**How it works.** The `.str` accessor dispatches each operation to a compiled C kernel that walks the underlying array. For regex methods, pandas compiles the pattern once and reuses it. `na=False` is the standard "don't blow up on NaN" guard — without it, NaN rows produce NaN in the result mask, which can crash boolean indexing.
+
+**Where it's used.** Filtering by substring: `df[df['name'].str.contains('Pro', case=False, na=False)]`. Extracting structured info from URLs: `df['qid'] = df['url'].str.extract(r'qid=(\d+)')`. Splitting a `"city, state"` column into two. Lowercase/strip cleanups: `df['email'].str.lower().str.strip()`.
+
+**Related terms.**
+- **`.str.replace(pat, repl, regex=True)`** — sibling for substitution.
+- **`.str.match`** — anchored version of `.str.contains` (must match from the start).
+- **`.str.findall`** — returns all matches per cell as a list.
+- **`na=False` / `na=True`** — how to treat NaN under boolean operations.
+- **Regex** — the pattern syntax most `.str` methods accept by default.
+
+```python
+df['has_durable'] = df['about_product'].str.contains('durable', case=False, na=False)
+df['qid']         = df['url'].str.extract(r'qid=(\d+)')
+df[['city', 'state']] = df['location'].str.split(', ', expand=True)
+```
+
+**Gotcha.** Default `regex=True` means special characters (`.`, `*`, `?`, `(`) are interpreted as regex metacharacters. For literal matches, pass `regex=False` — otherwise `.str.contains('1.5')` matches "125" too.
+
+#### `pd.to_datetime` — parse strings into datetimes
+
+> **🪜 Mental model:** *Turn "2024-03-15" the string into 2024-03-15 the date.* After this, you can subtract dates, extract day-of-week, or sort chronologically.
+
+**What it is.** `pd.to_datetime(series, format=..., errors='raise'|'coerce'|'ignore')` parses strings (or numbers, or mixed) into pandas `datetime64[ns]` values. `format=` accepts a `strftime`-style template (e.g., `'%Y-%m-%d'`) and dramatically speeds up parsing because pandas skips its multi-format guessing. `errors='coerce'` turns unparseable values into `NaT` (datetime NaN) instead of raising.
+
+**Why it matters.** Dates loaded from CSV are usually strings — `"2024-03-15"`. As strings they sort lexicographically (`"2024-03-15" < "2024-3-9"` because `"-1" < "-3"`), and you can't compute date arithmetic. Converting to real datetimes unlocks the `.dt` accessor and date math.
+
+**How it works.** Without `format=`, pandas tries multiple parsers per value — slow on big columns. With `format=`, it goes straight to the fast path. The result is a Series of `datetime64[ns]` (8 bytes per value, much smaller than a string). `errors='coerce'` is the standard production setting because real data has parse failures and you want NaT instead of a crash.
+
+**Where it's used.** Right after `pd.read_csv` for any column representing time. Inside `.assign(ts=pd.to_datetime(df['ts']))` for cleanup. Before any time-series analysis or sort-by-time operation. The `parse_dates=['col']` argument to `read_csv` is a shortcut for "parse on load."
+
+**Related terms.**
+- **`.dt` accessor** — what you can do *after* converting (see below).
+- **`NaT`** — Not-a-Time; pandas' datetime version of NaN.
+- **`pd.to_timedelta`** — sibling for durations.
+- **`parse_dates=['col']`** — `read_csv` shortcut that calls `to_datetime` under the hood.
+- **`format='%Y-%m-%d'`** — `strftime` directives; massive speedup when you know the format.
+
+```python
+df['ts'] = pd.to_datetime(df['order_timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+```
+
+**Gotcha.** Without `format=`, pandas may parse `01-02-2024` as Jan 2 (US) or Feb 1 (UK) depending on locale — silently wrong. Always pass `format=` on production data.
+
+#### `.dt` accessor — extract datetime components
+
+> **🪜 Mental model:** *Date-component namespace.* After `to_datetime`, `.dt` exposes `.year`, `.month`, `.day_name()`, `.hour`, `.dayofweek`, … — one call per piece you want to pull out.
+
+**What it is.** `.dt` is to datetime Series what `.str` is to string Series — a namespace of methods/properties that operate elementwise. Common members:
+- **`.dt.year`, `.dt.month`, `.dt.day`** — integer components.
+- **`.dt.dayofweek`** — 0 (Monday) to 6 (Sunday).
+- **`.dt.day_name()`** — string like `"Monday"`.
+- **`.dt.isocalendar().week`** — ISO week number (replaces deprecated `.dt.week`).
+- **`.dt.strftime('%B %Y')`** — format as a custom string ("March 2024").
+- **`.dt.normalize()`** — strip the time-of-day (set to 00:00:00).
+
+**Why it matters.** Time-based features ("is this a weekend?", "which month?", "which hour of day?") are crucial for analytics and ML. Extracting them in pandas is a one-liner; doing it by hand with string manipulation is error-prone (leap years, time zones, ISO weeks).
+
+**How it works.** The `.dt` accessor dispatches each call to a compiled NumPy datetime kernel. Returns a Series of the requested dtype (int, str, or Categorical depending on the method). Most properties are zero-cost — they're just reading the underlying epoch-nanoseconds integer.
+
+**Where it's used.** Feature engineering for time-series models (hour-of-day, day-of-week as features). Grouping by month/quarter (`groupby(df['ts'].dt.month)`). Filtering to weekends (`df[df['ts'].dt.dayofweek >= 5]`). Building human-readable labels (`dt.strftime('%B %Y')`).
+
+**Related terms.**
+- **`.dt.dayofweek`** — Monday=0, Sunday=6 (Python convention, NOT the SQL convention).
+- **`.dt.isocalendar()` returns a DataFrame** with `year`, `week`, `day` columns.
+- **`.dt.tz_localize` / `.dt.tz_convert`** — timezone handling.
+- **`.str` accessor** — the equivalent namespace for string Series.
+- **`pd.PeriodIndex` / `pd.DatetimeIndex`** — specialised index types for time series.
+
+```python
+df['hour']  = df['ts'].dt.hour
+df['dow']   = df['ts'].dt.day_name()
+df['week']  = df['ts'].dt.isocalendar().week
+df['label'] = df['ts'].dt.strftime('%B %Y')          # "March 2024"
+```
+
+**Gotcha.** `.dt.dayofweek` returns Monday=0 (Python), but SQL `DAYOFWEEK` returns Sunday=1 — different conventions. State the convention in the column docstring.
+
+#### Univariate visualisation — histogram and count plot
+
+> **🪜 Mental model:** *Two plots for one variable.* **Histogram** is for **continuous** values (binned into ranges). **Count plot** is for **categorical** values (one bar per unique value).
+
+**What it is.** Two seaborn (and matplotlib) plots that visualise the distribution of a single variable:
+- **`sns.histplot(data=df, x='col', bins=20, kde=True)`** — bins a continuous variable into ranges and draws one bar per bin showing how many rows fall in that range. `kde=True` overlays a kernel-density curve (smoothed histogram).
+- **`sns.countplot(data=df, x='col')`** — counts how many rows have each unique categorical value and draws one bar per category. Equivalent to `df['col'].value_counts().plot.bar()`.
+
+**Why it matters.** Univariate plots are the first visual probe of every column — they reveal skew, multimodality, outliers, and unexpected categories before you build anything on top. Choosing histogram vs countplot wrong (e.g., histogramming a category) produces a confusing plot and signals "I don't actually inspect my data."
+
+**How it works.**
+- `histplot` sorts values into bins (range based on min/max, edges based on `bins=` count) and counts per bin. With `kde=True`, it additionally fits a Gaussian kernel-density estimate and overlays it.
+- `countplot` runs a `value_counts()` internally and draws bars.
+
+Both accept `hue=` to add a categorical 3rd dimension (overlay multiple distributions).
+
+**Where it's used.** First EDA pass on every dataset: histogram each numeric column, count-plot each category. Decide if a numeric needs `log` transformation (skewed histogram), if a category has too many levels (lopsided countplot), or if there are surprise NaN gaps.
+
+**Related terms.**
+- **`sns.kdeplot`** — KDE only, no bars.
+- **`sns.ecdfplot`** — empirical cumulative distribution; alternative to histogram.
+- **`bins=` parameter** — too few hides shape; too many turns noise into signal. Try 20–50 to start.
+- **Bivariate** — when you want **two** variables, see Module 3.
+
+```python
+sns.histplot(data=df, x='rating', bins=20, kde=True, color='skyblue')
+sns.countplot(data=df, x='category', palette='coolwarm')
+plt.xticks(rotation=45)
+```
+
+**Gotcha.** Histogramming a categorical column (especially numeric IDs) produces a useless near-flat plot. Always check dtype first: `df['col'].dtype` and `df['col'].nunique()`.
+
 ### 🪞 Basic → Intermediate → Advanced — missing data
 
 **Basic** — count NaN per column.
@@ -352,26 +1026,25 @@ df.pivot_table(index='id', columns='month', values='rating',
                aggfunc='first')                              # documents intent
 ```
 
-### 🧠 Concept cheat sheet
+### 🧠 Concept cheat sheet (recap)
 
-| Concept | One-liner |
-|---|---|
-| `None` vs `NaN` | `None` is Python; `NaN` is `numpy.float64`. Pandas auto-converts most `None` to `NaN` |
-| `isna()` / `isnull()` | Identical methods — boolean mask of missing values |
-| `dropna(how='any'/'all', subset=[...])` | Remove rows/cols with NaN |
-| `fillna(value)` / `fillna(method='ffill')` | Impute — constant, mean, forward-fill, back-fill |
-| `pd.melt` | Wide → long. Multiple value columns collapse into rows |
-| `pd.pivot_table` | Long → wide with aggregation. `aggfunc='mean'` resolves duplicates |
-| `pivot` vs `pivot_table` | `pivot` errors on duplicate index/column pairs; `pivot_table` aggregates |
-| `pd.cut` | Binning continuous → categorical via edges + labels |
-| `pd.qcut` | Quantile binning (equal-count buckets) |
-| `.str.contains('foo', case=False, na=False)` | NaN-safe substring search |
-| `.str.extract(r'(pattern)')` | Pull regex matches into columns |
-| `pd.to_datetime` | Parse strings to datetimes; pass `format=` for speed/clarity |
-| `.dt` accessor | `.dt.year`, `.dt.month`, `.dt.day_name()`, `.dt.isocalendar().week`, `.dt.strftime('%B %Y')` |
-| Univariate plot | Distribution / count of ONE variable |
-| `sns.histplot(kde=True)` | Histogram with optional KDE overlay |
-| `sns.countplot(x='col')` | Categorical frequency bar plot |
+> Recap table — every row 2–3 lines: *what it is + when you reach for it*. Full definitions are in [the guided walkthrough above](#2g-guided).
+
+| Concept | What it is | When you use it |
+|---|---|---|
+| **Missing values (`NaN`)** | Pandas' placeholder for "no value"; appears as `np.nan` (float), `None`, or `NaT` (datetime). Math on NaN is contagious unless `skipna=True` (the default). | Every dataset has them — quantify with `isna().sum()`, then drop or impute before modelling. |
+| **`isna` / `notna`** | Identical-method twins. `isna()` is a boolean mask of missing cells; `notna()` is its opposite. `isnull` / `notnull` are aliases. | The first EDA call after `df.shape`. Pair with `.sum()` for per-column NaN audit. |
+| **`dropna`** | Removes rows (or cols) with NaN. Parameters: `axis`, `how='any'/'all'`, `subset=[…]`, `thresh=k`. | When missingness is rare and the row isn't recoverable. Default drops too aggressively — always pass `subset=`. |
+| **`fillna`** | Replaces NaN with a scalar, per-column dict, or directional fill (`ffill`/`bfill`). | When you can't afford to drop data. Pick the strategy per column: mean for numeric, "Unknown" for categorical, 0 for "no discount". |
+| **`pd.melt`** | Wide → long reshape. Stacks `value_vars` into one `value` column tagged with `var_name`. | Preparing data for plotting/grouping when your source is "report-style" with one column per metric. |
+| **`pd.pivot_table`** | Long → wide reshape + aggregation. Pick `index`, `columns`, `values`, `aggfunc`. | Cross-tabulation reports; heatmap inputs; "average X per row-key per col-key" tables. |
+| **`pd.cut` / `pd.qcut`** | Binning continuous values into discrete categories. `cut` uses explicit value edges; `qcut` uses equal-count quantiles. | "Low/Mid/High" labels (`cut`), or quartile/decile analysis (`qcut`). Inputs to groupby and categorical plots. |
+| **`.str` accessor** | Vectorized string ops — `contains`, `extract`, `split`, `replace`, `lower`, `strip`. Regex by default. | Substring filtering, extracting structured info from URLs/text, splitting concatenated columns. |
+| **`pd.to_datetime`** | Parse a string column to `datetime64[ns]`. Pass `format=` for speed; `errors='coerce'` for safety. | Right after `read_csv` for any time column. Unlocks the `.dt` accessor and date arithmetic. |
+| **`.dt` accessor** | Datetime-component namespace — `.dt.year`, `.dt.month`, `.dt.dayofweek`, `.dt.day_name()`, `.dt.strftime(...)`. | Feature engineering for time series; grouping by month/week; weekend vs weekday filters. |
+| **Histogram** | Bins a **continuous** variable into ranges and bars one bar per range. `kde=True` overlays a smooth curve. | Inspecting a numeric column's shape — skew, multimodality, outliers, gaps. |
+| **Count plot** | One bar per unique value of a **categorical** column. Equivalent to `value_counts().plot.bar()`. | Inspecting category frequency — finding rare classes, imbalance, surprise levels. |
+| **`pivot` vs `pivot_table`** | `pivot()` is strict (raises on duplicate (index, col) pairs); `pivot_table()` silently aggregates them. | Use `pivot_table` on real data; reach for `pivot` as a "this should be unique" sanity check. |
 
 ### ⚙️ Top APIs
 
@@ -517,6 +1190,287 @@ The decision tree in [§9](#9-vizdecisions) is the canonical version. Once you i
 
 **Encoding extra dimensions:** `hue` adds a categorical 3rd dimension; `size` adds a numeric 3rd; `subplots` adds an unlimited categorical 4th. Don't try to encode more than 4 — readers can't decode it.
 
+<a id="3g-guided"></a>
+### 📖 Guided concept walkthrough
+
+> Beginner-first introduction of every Module 3 concept. Each plot is paired with the *question it answers* — pick by question, not by chart name. The cheat sheet below is the recap surface.
+
+#### Scatter plot — numeric × numeric
+
+> **🪜 Mental model:** *Cloud of dots, one per row.* Each point's `x` is one numeric column, `y` is another; the cloud's shape reveals whether the two are related.
+
+**What it is.** A scatter plot draws one dot per row at position `(x, y)`, where `x` and `y` are two numeric columns. In seaborn: `sns.scatterplot(data=df, x='price', y='rating')`. Optional dimensions can be encoded via `hue=` (color by category), `size=` (size by numeric), or `style=` (marker shape).
+
+**Why it matters.** Scatter is the canonical plot for **relationship between two numerics**. Before you trust a correlation number, you should look at the scatter — the correlation might be 0.8 because of three outliers, or 0.0 because the relationship is non-linear. "Always plot, don't just compute" is a senior-engineer reflex.
+
+**How it works.** Seaborn iterates the rows of the DataFrame and calls matplotlib's `plt.scatter` once with the full arrays. With `hue=`, it splits by category and plots each subgroup separately so each gets a legend entry. `alpha=` (transparency) is essential when points overlap — without it, dense regions show only the topmost dot.
+
+**Where it's used.** EDA's "is X related to Y?" probe. Anscombe's quartet (the classic counterexample) is the canonical case for "look at the scatter, not the correlation". Outlier hunting. Sanity-check before regression: if the cloud is curved, linear regression is wrong.
+
+**Related terms.**
+- **`alpha`** — transparency (0–1); essential against overplotting.
+- **`hue`** — categorical color encoding for a 3rd dimension.
+- **2D KDE / hexbin** — alternatives for millions of points where individual dots stop helping.
+- **Line plot** — sibling for *ordered* x (time series); don't confuse the two.
+- **Pearson correlation** — the number summarising scatter shape (only for linear shapes).
+
+```python
+sns.scatterplot(data=df, x='price', y='rating', hue='category', alpha=0.4)
+```
+
+**Gotcha.** Plotting a million rows as individual dots creates one black blob. Either subsample, set `alpha=0.05`, or switch to a 2D density (`sns.kdeplot` / `plt.hexbin`).
+
+#### Line plot — time series or ordered numeric
+
+> **🪜 Mental model:** *Connect the dots in x-order.* Same as scatter but with line segments joining consecutive points — only meaningful when `x` has a natural order (time, position, rank).
+
+**What it is.** `sns.lineplot(data=df, x='month', y='value', marker='o')` draws one line connecting points sorted by `x`. With multiple groups (via `hue=` or by passing a long-form DataFrame), one line per group is drawn. Seaborn auto-aggregates duplicates (averaging y per x by default, with a 95% confidence-interval band).
+
+**Why it matters.** Line plots are the standard for **trends over time** — daily sales, monthly users, hourly latencies. They communicate direction (going up or down?) and turning points faster than any other plot. Using a line plot on **unordered** data is a beginner red flag.
+
+**How it works.** Seaborn sorts the data by `x`, computes the per-group aggregate (default: mean) at each unique `x`, draws a line connecting them, and overlays a confidence band (default 95% CI from bootstrap). Pass `errorbar=None` to suppress the band.
+
+**Where it's used.** Time-series trends (`x='date', y='value'`). Learning curves in ML (`x='epoch', y='loss'`). Performance comparisons across an ordered parameter. Side-by-side trends with `hue=` for multiple cohorts.
+
+**Related terms.**
+- **Scatter plot** — same `(x, y)` data; no line; use when x is unordered.
+- **`errorbar=None` / `errorbar='ci'`** — control the CI band.
+- **`marker='o'`** — explicit markers at every data point (useful for sparse x).
+- **Time series** — the typical use case; needs `pd.to_datetime` on x first.
+
+```python
+sns.lineplot(data=monthly, x='month', y='rating', marker='o')
+plt.xticks(rotation=45)
+```
+
+**Gotcha.** Line plots imply continuity. If your x is categorical and unordered (like `'Apparel'`, `'Books'`), don't use a line plot — switch to a bar plot.
+
+#### Box plot — categorical × numeric (5-number summary per group)
+
+> **🪜 Mental model:** *The 5-number summary, drawn.* For each category, draw the median, the box (Q1–Q3), the whiskers (extending to 1.5× IQR), and outliers as dots.
+
+**What it is.** `sns.boxplot(data=df, x='category', y='rating')` draws one box per category, summarising that group's distribution into five numbers: minimum (whisker bottom), 1st quartile (box bottom), median (line inside box), 3rd quartile (box top), maximum (whisker top). Points beyond 1.5× the **interquartile range (IQR = Q3 − Q1)** are drawn as outlier dots.
+
+**Why it matters.** Box plots compress a distribution into a tiny, comparable shape — perfect for side-by-side group comparisons. They're the standard way to ask "does rating differ across categories?" in one chart. They also highlight outliers without losing the central tendency.
+
+**How it works.** For each category in the `x` column, seaborn computes the quartiles of `y`, draws the box from Q1 to Q3, marks the median, extends whiskers to the data point nearest 1.5×IQR from the box, and dots anything beyond. The IQR rule is purely visual — it's not a formal outlier test, just a quick eye-catch.
+
+**Where it's used.** Group comparison ("rating per category"). Outlier inspection during EDA. Pre-modelling check that the target distribution is balanced across classes. A/B test results: box per variant.
+
+**Related terms.**
+- **Violin plot** — sibling that *also* shows distribution shape (see below).
+- **IQR (interquartile range)** — Q3 − Q1; the width of the box.
+- **Outlier (visual)** — point beyond 1.5×IQR; not a statistical definition.
+- **5-number summary** — min, Q1, median, Q3, max; what a boxplot draws.
+
+```python
+sns.boxplot(data=df, x='category', y='rating')
+plt.xticks(rotation=45)
+```
+
+**Gotcha.** A box plot hides multimodality — two groups with very different shapes can have identical boxes. When shape matters, use a violin plot.
+
+#### Violin plot — categorical × numeric with distribution shape
+
+> **🪜 Mental model:** *Box plot + smooth density.* You see the 5-number summary **and** the shape (bimodal? skewed?) of the distribution at the same time.
+
+**What it is.** `sns.violinplot(data=df, x='category', y='rating')` is a box plot with a kernel-density estimate (KDE) mirrored on both sides — the "violin" silhouette is wider where data is dense, narrower where it's sparse. Inside the violin, you can also see the box plot summary.
+
+**Why it matters.** A box plot summarises into 5 numbers, throwing away shape. If you suspect bimodality ("ratings cluster at 1 and 5, not 3") or skew, a violin plot reveals it where a box plot can't.
+
+**How it works.** Seaborn computes a Gaussian KDE on the `y` values per category, then mirrors the KDE around the vertical category axis. The horizontal width of the violin at any y-value is proportional to the density at that point. Combined with the inner box plot summary, you get summary + shape in one figure.
+
+**Where it's used.** Distribution comparison across groups when shape matters. Quality check that an "average rating" isn't hiding bimodal love-it-or-hate-it behavior. Often paired with box plots side-by-side in a 1×2 subplot grid.
+
+**Related terms.**
+- **Box plot** — simpler sibling; use when shape doesn't matter.
+- **KDE (Kernel Density Estimate)** — the smoothed density curve underlying the violin.
+- **`bw_method=` / `bw_adjust=`** — bandwidth controls; smooths the violin more or less.
+- **Bimodal distribution** — two peaks; visible in violin, hidden in box.
+
+```python
+sns.violinplot(data=df, x='category', y='rating', inner='box')
+```
+
+**Gotcha.** Violins are computationally heavy on big data. With millions of rows, sample first.
+
+#### Grouped bar chart — categorical × numeric aggregate
+
+> **🪜 Mental model:** *Bars per category showing an aggregated number.* By default seaborn's `barplot` shows the **mean** of `y` per category, with a 95% CI bar.
+
+**What it is.** `sns.barplot(data=df, x='category', y='rating', estimator=np.mean)` draws one bar per category whose height is the chosen aggregate (default mean, change with `estimator=`). The thin black line on top is a 95% confidence interval. With `hue=`, bars are split into sub-bars per hue category, producing a grouped bar chart.
+
+**Why it matters.** When you want a clean, simple "X per category" report — average revenue per region, conversion rate per variant — a bar plot is the cleanest visual. It's more compact than a box/violin and answers the headline question directly.
+
+**How it works.** Seaborn groups the data by `x` (and `hue=` if given), computes `estimator` (mean by default), and draws a bar of that height. The error bar comes from a bootstrap of the per-group mean (95% CI by default; disable with `errorbar=None`).
+
+**Where it's used.** "Average rating per category." "Conversion rate per A/B variant." "Revenue per region split by month (`hue='month'`)." Executive dashboards. Almost any "compare a number across categories" question.
+
+**Related terms.**
+- **`estimator=`** — change to `np.median`, `np.sum`, or a custom function.
+- **`countplot`** — special-case bar plot where `y` is implicitly the count.
+- **`errorbar=`** — `'ci'` (95% CI), `'sd'` (standard deviation), or `None`.
+- **Grouped bar (via `hue=`)** — multi-level comparison.
+
+```python
+sns.barplot(data=df, x='category', y='rating', hue='month', estimator='mean')
+```
+
+**Gotcha.** A bar plot showing the **mean** with a small CI band hides the distribution. If the spread matters, box/violin is better; if the count matters, use `countplot`.
+
+#### Pair plot — matrix of all pairwise scatter plots
+
+> **🪜 Mental model:** *Pairwise relationships at a glance.* For N numeric columns, draw an N×N grid: scatter for off-diagonal pairs, distribution plot on the diagonal.
+
+**What it is.** `sns.pairplot(df, hue='category', diag_kind='kde')` plots every numeric column against every other. Off-diagonal cells show scatter plots; diagonal cells show the univariate distribution of that column. With `hue=`, points and distributions are colored by category. `corner=True` shows only the lower triangle (since the matrix is symmetric).
+
+**Why it matters.** Pair plots are the fastest first-look at relationships in a small numeric dataset. You see all pairwise scatters, all marginal distributions, and (with hue) the per-class structure — in one figure. It's the standard "quick first-pass" plot in EDA.
+
+**How it works.** Seaborn iterates over all `N×N` cell positions, plotting a scatter for off-diagonal `(i, j)` cells with column `i` on x and column `j` on y, and a KDE/histogram on the diagonal. It's basically `for i in cols: for j in cols: subplot(...)`.
+
+**Where it's used.** EDA on small numeric datasets (5–8 columns). Before fitting a regression: do features look linearly related to the target? Class separability check (with `hue='label'`).
+
+**Related terms.**
+- **`corner=True`** — show only the lower-triangle (avoid the duplicated upper half).
+- **Heatmap of correlation** — the "compressed" alternative for many columns.
+- **`diag_kind='kde' / 'hist'`** — distribution plot type on the diagonal.
+- **Scatter plot matrix / SPLOM** — the same idea in matplotlib / R.
+
+```python
+sns.pairplot(df[['price','rating','count']].dropna(), diag_kind='kde', corner=True)
+```
+
+**Gotcha.** Pair plots scale O(N²) — with 30 numeric columns you get 900 subplots and a multi-minute render. Cap at ~8 columns; for more, use a correlation heatmap.
+
+#### Heatmap — matrix of values
+
+> **🪜 Mental model:** *Color-coded grid.* Each cell of a 2D matrix gets a color from a colormap, scaled by the cell's value.
+
+**What it is.** `sns.heatmap(matrix, annot=True, fmt='.2f', cmap='coolwarm', center=0)` takes a 2D matrix (a DataFrame or 2D array) and draws it as a grid of colored cells. With `annot=True`, the numeric values are overlaid; `fmt='.2f'` controls their formatting. `cmap` picks the colormap; `center=0` makes diverging colormaps (red-blue) symmetric around zero.
+
+**Why it matters.** When you have many pairs of related values (a correlation matrix, a confusion matrix, a pivot table), a heatmap shows the **whole structure at once**. The eye picks up patterns (blocks of red, single hot cells) faster than reading numbers.
+
+**How it works.** Each cell is filled with the color from `cmap` at the position `(value - vmin) / (vmax - vmin)`. With `annot=True`, each cell's value is also written in text. The colorbar on the right shows the value-to-color mapping.
+
+**Where it's used.** Correlation matrices (`df.corr()` → heatmap). Confusion matrices in ML evaluation. Pivot tables of "average X per row-key per col-key". Cross-tabs.
+
+**Related terms.**
+- **`cmap`** — colormap; `'coolwarm'` / `'RdBu_r'` for diverging (around 0), `'viridis'` / `'Blues'` for sequential.
+- **`center=0`** — symmetric scale around 0 (essential for correlation).
+- **`annot=True`** — show numbers in cells.
+- **`fmt='.2f'`** — number formatting for the annotations.
+- **Confusion matrix** — the ML-evaluation heatmap of predictions vs truths.
+
+```python
+sns.heatmap(df.corr(), annot=True, fmt='.2f', cmap='coolwarm', center=0)
+```
+
+**Gotcha.** Without `center=0`, a correlation heatmap's color scale is unbalanced and small negatives look like nothing. Always set `center=0` for correlations.
+
+#### Stacked bar / 100% stacked bar
+
+> **🪜 Mental model:** *Composition per category.* Each x-axis bar is one category; the bar is split into colored segments showing the composition by a second variable. 100%-stacked rescales each bar to total 100% so you compare proportions, not absolute totals.
+
+**What it is.** `df.groupby(['a','b']).size().unstack().plot(kind='bar', stacked=True)` produces a stacked bar where each x is a unique value of `a` and the bar is segmented by `b`. The total height of each bar is the sum across `b`. For a **100% stacked** version, divide each row by its sum first: `cross.div(cross.sum(axis=1), axis=0) * 100`.
+
+**Why it matters.** Stacked bars communicate **composition** — "what's the mix of B within each A?" Useful for category-share questions ("what fraction of orders in each region is Prime?"). 100%-stacked is the version when totals differ wildly and you only care about proportions.
+
+**How it works.** First, build a cross-tab (count per `(a, b)` pair) using groupby+size+unstack or `pd.crosstab`. Then call `.plot(kind='bar', stacked=True)`. Each row of the cross-tab becomes one stacked bar.
+
+**Where it's used.** Marketing reports: "category share by region". Survey results: "answer distribution per question". A/B test composition: "variants × outcome counts".
+
+**Related terms.**
+- **`crosstab()`** — pandas' shortcut for building the underlying count table.
+- **100%-stacked** — proportion view, not absolute.
+- **Grouped bar** — sibling alternative; bars side-by-side, not stacked.
+- **`unstack()`** — pivots the groupby result into the wide shape `plot()` expects.
+
+```python
+# 100%-stacked bar — proportions per group
+cross = df.groupby(['region','status']).size().unstack(fill_value=0)
+(cross.div(cross.sum(axis=1), axis=0) * 100).plot(kind='bar', stacked=True)
+```
+
+**Gotcha.** Stacked bars with too many segments (more than ~5) become unreadable. Limit categories or aggregate small ones into "Other".
+
+#### `.corr()` — correlation matrix
+
+> **🪜 Mental model:** *Pairwise linear-relationship strength.* For every pair of numeric columns, a number in `[-1, +1]` summarising how linearly they move together.
+
+**What it is.** `df.corr(method='pearson' | 'spearman' | 'kendall')` returns a square DataFrame of pairwise correlations. Pearson (default) measures **linear** correlation. Spearman measures **monotonic** correlation (works for ordinal/rank data, catches non-linear monotones). Kendall is a robust alternative based on concordant pairs. Diagonal is always 1 (a column with itself).
+
+**Why it matters.** Correlation is the most-used summary of "how strongly are these two variables related?" It's the first quantitative probe before fitting a regression. In feature engineering, highly-correlated features signal redundancy. In interviews, "correlation ≠ causation" and "Pearson r=0 ≠ independent" are top traps.
+
+**How it works.** Pearson r = `cov(x, y) / (σ_x · σ_y)` — covariance divided by the product of standard deviations. Range is `[-1, +1]`: `+1` perfect positive linear, `-1` perfect negative linear, `0` no linear relationship. Spearman is Pearson applied to the **ranks** of the data instead of the raw values — that's why it catches monotonic non-linear shapes.
+
+**Where it's used.** Correlation heatmap during EDA. Feature-selection screen ("drop one of any pair with |r| > 0.9"). Time-series cross-correlation. Diagnostic for multicollinearity in linear regression.
+
+**Related terms.**
+- **Pearson** — linear; sensitive to outliers; only meaningful for numerics.
+- **Spearman** — rank-based; catches monotonic non-linear; robust to outliers.
+- **Kendall** — concordant-pair-based; even more robust, slower.
+- **r = 0 ≠ independence** — the canonical interview trap. r=0 means no LINEAR relationship; non-linear relationships may still exist (e.g., quadratic).
+- **Covariance** — the unscaled version of correlation; scale-dependent.
+
+```python
+df.select_dtypes('number').corr(method='pearson')
+df[['x','y']].corr(method='spearman')
+```
+
+**Gotcha.** `.corr()` silently **drops non-numeric columns** — if a column you expected isn't in the result, check its dtype with `df.dtypes`.
+
+#### `hue` — adds a categorical 3rd dimension via colour
+
+> **🪜 Mental model:** *Colour-by-category overlay.* When you have a 2D plot (scatter, line, box) and want a 3rd variable, encode it as colour by setting `hue=`.
+
+**What it is.** `hue=` is a seaborn parameter that splits a plot by a categorical (or low-cardinality) variable and colours each subset differently. In a scatter plot it colours individual points; in a line plot it draws one line per category; in a box plot it puts side-by-side boxes per category. A legend appears automatically.
+
+**Why it matters.** Without `hue`, a 2D plot can only show two variables. With `hue`, you can answer "does the relationship differ across groups?" — e.g., is the price-vs-rating cloud the same for Electronics and Apparel? It's the simplest way to add a dimension without going to 3D (which is almost always a bad idea).
+
+**How it works.** Seaborn groups the data by the `hue` column, then plots each group with a different color from the active palette. The legend maps colour → category. You can control the palette with `palette='coolwarm'`.
+
+**Where it's used.** Scatter coloured by class. Multi-line trend per cohort. Side-by-side boxes per group. Any "compare across category" question in EDA.
+
+**Related terms.**
+- **`size=`** — encodes a numeric 3rd dimension via dot/line size.
+- **`style=`** — encodes a categorical 3rd dimension via marker shape (use instead of hue for grayscale prints).
+- **`palette=`** — colour scheme; `'coolwarm'`, `'Spectral'`, `'viridis'`.
+- **Faceting / subplots** — alternative for too-many categories; one mini-plot per category.
+
+```python
+sns.scatterplot(data=df, x='price', y='rating', hue='category', alpha=0.5)
+```
+
+**Gotcha.** `hue=` with 50+ categories produces an unreadable legend. Bucket the variable first (`pd.cut`) or pick top-N and lump the rest as "Other".
+
+#### Subplots / `plt.subplots` / faceting
+
+> **🪜 Mental model:** *A grid of mini-plots in one figure.* When one plot can't fit all the views you need, lay out multiple `Axes` side-by-side and put one plot in each.
+
+**What it is.** `fig, axes = plt.subplots(nrows, ncols, figsize=(w, h))` creates a figure with a grid of empty axes. You then plot into each one by indexing (`axes[0]`, `axes[1, 2]`) and passing `ax=axes[...]` to a seaborn call. After the last plot, `plt.tight_layout()` rebalances padding so labels don't collide. Faceting (`sns.FacetGrid` or `sns.catplot`/`sns.relplot` with `col=` / `row=`) is the higher-level version where seaborn builds the grid automatically based on a categorical column.
+
+**Why it matters.** Side-by-side plots make patterns instantly comparable. "Box vs violin" in two adjacent panels. "Same scatter, four price bands". Sometimes the cleanest answer to "how do I show this?" is "two charts together."
+
+**How it works.** `plt.subplots(nrows, ncols)` returns a `Figure` and an array (or 2D grid) of `Axes` objects. Each Axes is an independent plotting area — its own x/y scale, title, legend. You explicitly pass which axes a plot goes into via `ax=`. `tight_layout()` runs a quick layout solver after the plots are drawn.
+
+**Where it's used.** Comparing the same data in two views (box and violin). Showing the same plot per category (faceting). Dashboards. Pre/post-cleanup comparisons.
+
+**Related terms.**
+- **`plt.tight_layout()`** — call after the last plot, before `show`, to avoid label overlap.
+- **`figsize=(w, h)`** — figure size in inches; bigger for more subplots.
+- **`sns.FacetGrid` / `col=` / `row=`** — seaborn's auto-faceting layer.
+- **`fig.suptitle('...')`** — overall title across all subplots.
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+sns.boxplot(data=df,    x='category', y='rating', ax=axes[0])
+sns.violinplot(data=df, x='category', y='rating', ax=axes[1])
+plt.tight_layout()
+plt.show()
+```
+
+**Gotcha.** Forget `plt.tight_layout()` and titles/labels overlap the figure edge. Forget `ax=axes[i]` and seaborn draws on the wrong panel.
+
 ### 🪞 Basic → Intermediate → Advanced — correlation
 
 **Basic** — Pearson correlation in [-1, 1] for two numeric arrays.
@@ -553,28 +1507,26 @@ sns.kdeplot(data=df, x='price', y='rating', fill=True)
 plt.hexbin(df['price'], df['rating'], gridsize=50, cmap='Blues')
 ```
 
-### 🧠 Concept cheat sheet
+### 🧠 Concept cheat sheet (recap)
 
-| Concept | One-liner |
-|---|---|
-| Univariate | One variable — distribution / count |
-| Bivariate | Two variables — relationship |
-| Multivariate | 3+ variables — typically encoded with hue, size, or subplots |
-| `sns.scatterplot(x, y, hue, alpha)` | Two continuous vars; `hue` adds a 3rd categorical dim |
-| `sns.lineplot(x, y, marker)` | Trends over a sequence (time, ordinal x) |
-| `sns.boxplot(x, y)` | Quartiles, median, whiskers, outliers per group |
-| `sns.violinplot(x, y)` | Box + KDE — shows density shape |
-| `sns.barplot(x, y, hue, estimator=np.mean)` | Aggregated bar (default = mean + 95% CI) |
-| `sns.pairplot(df, hue, diag_kind)` | Grid of pairwise scatter + diag distributions |
-| `sns.heatmap(corr, annot, fmt, cmap)` | Color-encoded matrix; great for correlation |
-| `df.corr(method='pearson')` | Linear correlation; `'spearman'` for monotonic |
-| Pearson r = 0 means | NO **linear** relation — non-linear may still exist |
-| Stacked bar | `df.groupby([a, b]).size().unstack().plot(kind='bar', stacked=True)` |
-| `plt.subplots(rows, cols)` | Multi-axes figure; assign with `ax=axes[i]` |
-| `figsize=(w, h)` | Inches |
-| `alpha` | Transparency 0–1 — useful for overplotting in scatter |
-| `hue` | Color encoding by a categorical variable |
-| `palette` | Color scheme — `'coolwarm'`, `'Spectral'`, `'Blues'` |
+> Recap table — every row 2–3 lines: *what it is + when you reach for it*. Full definitions are in [the guided walkthrough above](#3g-guided).
+
+| Concept | What it is | When you use it |
+|---|---|---|
+| **Scatter plot** | One dot per row at `(x, y)`. Shows the relationship between two numeric variables. | "Is X related to Y?" Always look at scatter before trusting a correlation number. |
+| **Line plot** | Scatter + line segments connecting points sorted by `x`. Implies x has an order. | Trends over time, learning curves, anything where x is sequential. |
+| **Box plot** | One box per group showing the 5-number summary (min/Q1/median/Q3/max) + outlier dots beyond 1.5×IQR. | Comparing distributions across categories. Quick outlier inspection. |
+| **Violin plot** | Box plot + mirrored KDE — shows summary **and** distribution shape (bimodal? skewed?). | When the shape of the per-group distribution matters, not just the summary. |
+| **Grouped bar** | One bar per category showing an aggregate (default mean) with a CI band. With `hue=`, side-by-side bars per sub-category. | Executive-style "average per region" reports. Aggregated comparison. |
+| **Pair plot** | N×N grid: scatter off-diagonal, distribution on-diagonal, for every pair of numeric columns. | First-look EDA on small (~5–8 col) numeric datasets. Class separability check with `hue=label`. |
+| **Heatmap** | 2D matrix drawn as color-encoded cells. `annot=True` overlays numbers. | Correlation matrices, confusion matrices, pivot tables — pattern detection in 2D structure. |
+| **Stacked bar / 100% stacked** | Bars split into segments showing composition by a 2nd variable. 100%-stacked normalises to proportions. | "Mix of B inside A." Marketing share, survey composition, A/B variant outcomes. |
+| **`.corr()`** | Pairwise correlation matrix. Pearson (linear), Spearman (monotonic), Kendall (rank-pair). | Quantitative summary of relationships. Feature-redundancy check. |
+| **`hue` parameter** | Adds a categorical 3rd dimension by colouring points/lines/boxes per category. | Comparing the same relationship across groups (price-vs-rating per category). |
+| **`subplots` / faceting** | Grid of independent mini-plots in one figure. `plt.subplots(rows, cols)` or `sns` faceting via `col=`. | Side-by-side comparisons (box vs violin, before vs after, per category). |
+| **Pearson r = 0** | No **linear** relationship — non-linear (quadratic, sinusoidal) relationships may still be strong. | The canonical interview trap. Don't conclude independence from r = 0. |
+| **`alpha`** | Transparency 0–1. Lets overlapping points show density instead of one black blob. | Any scatter with overplotting. Try `alpha=0.3–0.5`. |
+| **`palette`** | Colour scheme — `'coolwarm'` (diverging), `'viridis'` (sequential), `'Set2'` (categorical). | Tune readability of `hue`-encoded plots. Match the data type (sequential vs diverging vs categorical). |
 
 ### ⚙️ Top APIs
 
@@ -709,6 +1661,405 @@ plt.xticks(rotation=45)
    ```
    Every probability question reduces to "which cell or row/column total am I dividing?" The numerator is always **some count**; the denominator is always **the conditioning set size**.
 
+<a id="4g-guided"></a>
+### 📖 Guided concept walkthrough
+
+> Beginner-first introduction of every probability concept in this module. Translation: every formula here is followed by a plain-English sentence so the symbols stop feeling like a wall. Read top-to-bottom on a first pass; the cheat sheet below is the recap.
+
+#### Sample space and events
+
+> **🪜 Mental model:** *The whole list of "what could happen", and the subsets you care about.* The sample space is **everything possible**; an event is **the subset where the question is "yes"**.
+
+**What it is.** The **sample space** (usually written **S** or **Ω**) is the set of all possible outcomes of a random experiment. Roll a die → S = {1, 2, 3, 4, 5, 6}. A Sachin ODI innings → S = the set of all match outcomes. An **event** is any subset of S — e.g., "rolled an even number" = {2, 4, 6}, or "Sachin scored a century" = the set of matches where runs ≥ 100. A single outcome (e.g., "rolled a 4") is also called an **elementary event** or just an **outcome**.
+
+**Why it matters.** Probability is just "counting how many elementary outcomes are in this event, divided by how many are in the sample space." Until you can clearly name the sample space and the event, you can't compute anything. Interview traps almost always come from a sloppy sample space — e.g., "conditional on already knowing it's a boy" silently shrinks S to "families with at least one boy."
+
+**How it works.** In pandas, the **sample space is your DataFrame** — each row is one elementary outcome. An event is a **subset of rows** — usually built with a boolean mask: `df[df['runs'] >= 100]`. Then `len(event) / len(sample_space)` is the empirical probability of that event. Every probability calculation in this module reduces to "filter the DataFrame, count rows, divide."
+
+**Where it's used.** Every probability problem starts here — "what's the sample space?" should be the first sentence of any answer. In data analysis, S is the DataFrame; events are masks. In ML, S is the set of possible (X, y) pairs; events are subsets like "model predicted positive."
+
+**Related terms.**
+- **Outcome / elementary event** — a single point in S; a single row of the DataFrame.
+- **Event** — any subset of S; a boolean filter of the DataFrame.
+- **Universe** — synonym for sample space.
+- **Trial / experiment** — one "execution" of the random process (one die roll, one match).
+- **Mutually exclusive events** — events that share no outcomes (no overlap in row sets).
+
+```python
+S    = df                                       # sample space = all rows
+event = df[df['runs'] >= 100]                    # event = subset of rows
+P_event = len(event) / len(S)
+```
+
+**Gotcha.** If your DataFrame has duplicates, the "sample space" is corrupted — each duplicate inflates the count. Dedupe (and define what "one trial" means) before computing probabilities.
+
+#### Set operations on events (∪, ∩, complement)
+
+> **🪜 Mental model:** *Events are sets; combine them with set algebra.* Union = "either or both happen"; intersection = "both happen"; complement = "doesn't happen".
+
+**What it is.** Three operations you can do on events:
+- **Union** (`A ∪ B`) — at least one of A, B occurs. In pandas: `df[mask_A | mask_B]`.
+- **Intersection** (`A ∩ B`) — both A and B occur. In pandas: `df[mask_A & mask_B]`.
+- **Complement** (`A′` or `A^c` or `¬A`) — A does **not** occur. In pandas: `df[~mask_A]`.
+
+In plain English: ∪ is "OR", ∩ is "AND", complement is "NOT".
+
+**Why it matters.** Every multi-condition probability question is built from these. "P(century OR fifty)" is a union. "P(century AND won the match)" is an intersection. "P(did not score a century)" is a complement. Getting the boolean operators (`&`, `|`, `~`) right — including the parentheses — is half the battle in pandas probability code.
+
+**How it works.** Boolean masks combine elementwise:
+- `mask_A | mask_B` — element-wise OR; True where either mask is True.
+- `mask_A & mask_B` — element-wise AND; True where both masks are True.
+- `~mask_A` — element-wise NOT; flips True ↔ False.
+
+Each compound mask is itself a boolean Series, ready to feed into `df[mask]` to get the rows of the corresponding event.
+
+**Where it's used.** Every multi-condition filter in EDA. Every probability of a compound event. Every set-builder description ("matches where won AND scored century").
+
+**Related terms.**
+- **`&`, `|`, `~`** — pandas bitwise operators; ALWAYS parenthesize each comparison.
+- **`and`, `or`, `not`** — Python keywords; **do not work** on Series (raise `ValueError`).
+- **Mutually exclusive** — A ∩ B = ∅ (no overlap).
+- **Complement rule** — P(A′) = 1 − P(A) (see below).
+
+```python
+df[(df['runs'] > 50) & (df['Won'])]    # intersection
+df[(df['runs'] > 50) | (df['century'])] # union
+df[~(df['runs'] > 50)]                  # complement
+```
+
+**Gotcha.** `df[mask_A and mask_B]` raises `ValueError: ambiguous truth value`. Pandas needs `&` (and parentheses around each comparison because `&` has higher precedence than `>` / `<`).
+
+#### Probability — the basic definition
+
+> **🪜 Mental model:** *Favourable outcomes ÷ total outcomes.* If every outcome in S is equally likely, the probability of event A is `|A| / |S|`.
+
+**What it is.** For a finite sample space with equally-likely outcomes, **P(A) = |A| / |S|** — the number of outcomes in event A divided by the number in the sample space. P(A) is always in [0, 1]. When outcomes are NOT equally likely, probability is defined more carefully (axiomatically by Kolmogorov), but the empirical formula `count_satisfying / total_count` is still what we compute from data.
+
+**Why it matters.** This is the operational definition we use in every Pandas probability calculation — `(df['runs'] > 50).mean()` is exactly this formula, since `mean` of a boolean Series equals `(count of True) / (total count)`. Internalising that *mean-of-bool = probability* is the single most useful shortcut in applied probability.
+
+**How it works.**
+1. Define event A as a boolean mask: `mask = df['runs'] > 50`.
+2. `mask.sum()` counts the True values — the favourable outcomes.
+3. `len(df)` (or `len(mask)`) is |S| — the total.
+4. `mask.sum() / len(df)` = empirical P(A).
+5. Equivalently and more pandas-idiomatic: `mask.mean()`. (Boolean → 1/0 → mean = fraction True.)
+
+For non-uniform sample spaces (weighted outcomes), `(df['weight'] * mask).sum() / df['weight'].sum()`.
+
+**Where it's used.** Every empirical probability calculation. Class-balance audits in ML (`(y == 1).mean()`). Conversion rates (`(df['clicked']).mean()`). Hit rates in models (`(y_pred == y_true).mean()`).
+
+**Related terms.**
+- **Empirical probability** — what we compute from data; converges to the true probability as n → ∞ (law of large numbers).
+- **Theoretical probability** — derived from a model (P(heads) = 0.5 for a fair coin).
+- **`mean()` on a bool Series** — fraction of True; equals empirical P.
+- **Law of large numbers** — empirical converges to theoretical as sample size grows.
+
+```python
+P_50plus = (df['runs'] > 50).mean()    # mean of bool = empirical P
+```
+
+**Gotcha.** Probability is **always** in [0, 1]. If you compute >1 or <0, you've divided by the wrong denominator or the mask is computing something other than 0/1.
+
+#### Addition rule of probability
+
+> **🪜 Mental model:** *P(A) + P(B) double-counts the overlap; subtract it once.* "Anyone in A OR B" = "people in A" + "people in B" − "people in both".
+
+**What it is.** For any two events A and B:
+**P(A ∪ B) = P(A) + P(B) − P(A ∩ B)**
+
+In plain English: the probability that A happens OR B happens (or both) equals the probability of A plus the probability of B, minus the probability of both happening together. The subtraction corrects for the fact that the intersection got counted twice — once in each individual probability.
+
+If A and B are **mutually exclusive** (can't both happen, so P(A ∩ B) = 0), the formula simplifies to **P(A ∪ B) = P(A) + P(B)**.
+
+**Why it matters.** This is the formula behind "what fraction of matches did Sachin score a fifty OR a century?" If you naively add P(fifty) + P(century), you double-count the centuries (which are also fifties). The addition rule corrects that. Beginners forget the subtraction constantly.
+
+**How it works.**
+1. Compute P(A) = `mask_A.mean()`.
+2. Compute P(B) = `mask_B.mean()`.
+3. Compute P(A ∩ B) = `(mask_A & mask_B).mean()`.
+4. P(A ∪ B) = P(A) + P(B) − P(A ∩ B).
+
+Alternatively, compute it directly: `(mask_A | mask_B).mean()`. Both should give the same answer — if they don't, your masks aren't what you think they are.
+
+**Where it's used.** Any "P(A or B)" question. Union-of-events probabilities in survey analysis. Coverage metrics in IR / search: "fraction of queries matched by retriever A or retriever B".
+
+**Related terms.**
+- **Mutually exclusive events** — P(A ∩ B) = 0, so subtraction term drops out.
+- **Inclusion-exclusion principle** — generalisation for ≥ 3 events: alternating sum.
+- **`|` operator on masks** — the direct way to compute the union in pandas.
+
+```python
+P_A_or_B = P_A + P_B - P_A_and_B
+# or directly:
+P_A_or_B = (mask_A | mask_B).mean()
+```
+
+**Gotcha.** "P(A or B) = P(A) + P(B)" is **only correct when A and B are mutually exclusive**. Forgetting the −P(A ∩ B) is the #1 addition-rule mistake.
+
+#### Multiplication rule of probability
+
+> **🪜 Mental model:** *P(A AND B) = P(A) × P(B given A).* "Both happen" = "first one happens" × "second one happens given the first did".
+
+**What it is.** For any two events A and B:
+**P(A ∩ B) = P(A) · P(B | A)**
+
+In plain English: the probability that BOTH A and B happen equals the probability that A happens, times the probability that B happens given A has already happened.
+
+If A and B are **independent** (knowing A doesn't change P(B)), then P(B | A) = P(B), and the formula simplifies to **P(A ∩ B) = P(A) · P(B)**.
+
+**Why it matters.** Joint probabilities are everywhere — "what's the chance both events happen?" The general form (with the conditional) is the foundation of Bayes' theorem. The independence shortcut is the formula students memorise — but it's only valid under independence, which you must verify.
+
+**How it works.**
+1. P(A) = `mask_A.mean()` — probability A happens (marginal).
+2. P(B | A) = `mask_B[mask_A].mean()` — among rows where A is True, what fraction also have B? (See conditional probability below.)
+3. P(A ∩ B) = product of the two.
+
+Alternatively (and more directly): `(mask_A & mask_B).mean()`. As with the addition rule, both routes should agree.
+
+**Where it's used.** Joint event probabilities. Building Bayes' theorem from empirical pieces. Sequential trials: "probability of two heads in a row" = P(H) · P(H | H) = 0.5 · 0.5 if independent.
+
+**Related terms.**
+- **Independence** — when P(B | A) = P(B); enables the product shortcut.
+- **Conditional probability** — the P(B | A) factor; see below.
+- **Joint probability** — what the rule computes (P(A ∩ B)).
+- **Chain rule** — general form for many events: P(A₁ ∩ … ∩ Aₙ) = P(A₁) · P(A₂ | A₁) · … · P(Aₙ | A₁ ∩ … ∩ Aₙ₋₁).
+
+```python
+P_A      = (df['A']).mean()
+P_B_givA = (df.loc[df['A'], 'B']).mean()     # condition on A
+P_AB     = P_A * P_B_givA
+```
+
+**Gotcha.** "P(A and B) = P(A) · P(B)" works ONLY for independent events. If "A happened" tells you anything about B (e.g., temperature high and AC bill high), they're not independent, and you must use the conditional form.
+
+#### Complement rule
+
+> **🪜 Mental model:** *Everything that isn't A.* P(not A) = 1 − P(A). Always.
+
+**What it is.** The **complement** of an event A — denoted A′ or Aᶜ or ¬A — is "A does not happen". The complement rule states:
+**P(A′) = 1 − P(A)**
+
+Plain English: the probability of A not happening equals one minus the probability of A happening. Always true, no conditions.
+
+**Why it matters.** The complement rule is the single most powerful trick in probability. Many questions are vastly easier to compute as "1 minus the complement" than directly. *"What's the probability of at least one six in 10 rolls?"* = `1 − P(no sixes in 10 rolls)` = `1 − (5/6)^10`. Computing it directly would require inclusion-exclusion over many cases.
+
+**How it works.** In pandas: `P_not_A = 1 - mask_A.mean()`, or equivalently `(~mask_A).mean()`. Both give the same number.
+
+The rule holds because the events A and A′ partition the sample space (every outcome is in exactly one), and probabilities of a partition sum to 1.
+
+**Where it's used.** "At least one" calculations (compute "none", subtract from 1). Sanity checks (P + P(complement) must equal 1). Quick interview wins on "what's the probability of at least one match?" type questions.
+
+**Related terms.**
+- **Partition** — splitting S into disjoint events whose probabilities sum to 1.
+- **De Morgan's laws** — complement distributes over union/intersection: (A ∪ B)′ = A′ ∩ B′.
+- **"At least one" trick** — P(at least one) = 1 − P(none).
+
+```python
+P_A     = (df['Won']).mean()
+P_not_A = 1 - P_A                       # or (~df['Won']).mean()
+```
+
+**Gotcha.** Don't compute "at least one" by adding individual probabilities — you'll double-count overlaps. Use 1 − P(none) instead.
+
+#### Marginal probability
+
+> **🪜 Mental model:** *Probability of A alone, ignoring all other variables.* The "single-column" probability.
+
+**What it is.** The **marginal probability** P(A) is the probability of event A occurring, *without conditioning on any other event*. It's what you get when you "marginalise over" (sum out) every other variable.
+
+For a 2-variable joint distribution P(A, B), the marginal of A is **P(A) = Σ_b P(A, B=b)** — sum the joint over all values of the other variable. In English: to get P(A), add up the joint probability across every possible B.
+
+**Why it matters.** Marginal probabilities are the unconditional "baseline" — "what's the overall fraction of wins?" P(win). They serve as priors in Bayes (the "P(A)" factor) and are what naive analyses default to. Distinguishing marginal from conditional is one of the most-tested concepts in interviews.
+
+**How it works.** In a DataFrame, marginal P(A) = `(df['A']).mean()` — no filtering. The fact that you're not filtering by anything else IS the marginalisation. If you had a frequency table of joint events, you'd sum across rows or columns to get the marginal — same idea.
+
+**Where it's used.** Class balance: marginal P(y=1). Click-through rate: marginal P(clicked). Prior probability in Bayes. Baseline metric to compare conditional probabilities against ("conditional given X is 80%, but the marginal is 50% — so X really moves the needle").
+
+**Related terms.**
+- **Joint probability** — P(A ∩ B), both happen (see below).
+- **Conditional probability** — P(A | B), A given B (see below).
+- **Prior** — the marginal P(A) before observing evidence, in Bayesian language.
+- **Marginalisation** — the operation of summing the joint over one variable to get the other's marginal.
+
+```python
+P_win = df['Won'].mean()           # marginal — no condition
+```
+
+**Gotcha.** Don't confuse marginal P(A) with conditional P(A | B). Marginal is "overall"; conditional is "within the B group." If your "overall conversion rate" doesn't match your "per-cohort" rates, Simpson's paradox is lurking.
+
+#### Joint probability
+
+> **🪜 Mental model:** *Both happen.* P(A ∩ B) = the probability that A and B occur together.
+
+**What it is.** The **joint probability** of two events is the probability they **both occur**: **P(A ∩ B)** (also written P(A, B) or P(A and B)). For independent events, it factors: P(A ∩ B) = P(A) · P(B). In general, it requires the multiplication rule: P(A ∩ B) = P(A) · P(B | A).
+
+**Why it matters.** Joint probabilities are the "raw material" of probability: the joint distribution P(A, B) over all (A, B) pairs determines every marginal and every conditional. In a 2×2 contingency table, the four cell probabilities are joints; row/column totals are marginals; ratios are conditionals.
+
+**How it works.** In pandas: `P_AB = ((df['A']) & (df['B'])).mean()` — the fraction of rows where both columns are True. With a contingency table (`pd.crosstab(df['A'], df['B'], normalize=True)`), each cell IS a joint probability.
+
+For continuous variables, the joint is a 2D density rather than a single number — but the principle (probability of both happening together) is the same.
+
+**Where it's used.** Contingency tables (joint = cell value). Confusion matrices in ML evaluation (joint of "true class" and "predicted class"). Bayesian model components.
+
+**Related terms.**
+- **Marginal probability** — sum the joint over the other variable to get it.
+- **Conditional probability** — divide the joint by a marginal to get it (P(A | B) = P(A ∩ B) / P(B)).
+- **Independence** — when P(A ∩ B) = P(A) · P(B).
+- **Joint distribution** — the full table of all P(A, B) pairs.
+
+```python
+P_AB = ((df['runs'] > 50) & (df['Won'])).mean()
+pd.crosstab(df['runs_50plus'], df['Won'], normalize=True)   # joint table
+```
+
+**Gotcha.** P(A ∩ B) is NOT P(A) + P(B). That's the addition rule territory (union, not intersection).
+
+#### Conditional probability — P(A | B)
+
+> **🪜 Mental model:** *Shrink the world.* Given B happened, restrict your attention to only the rows where B is True, then ask "what fraction of those have A?"
+
+**What it is.** The conditional probability of A given B is:
+**P(A | B) = P(A ∩ B) / P(B)**, defined for P(B) > 0.
+
+In plain English: the probability that A occurs given that B has already occurred equals the probability that both A and B occur divided by the probability that B occurs. The denominator changes from the full sample space size to just |B| — the rows where B is True.
+
+**Why it matters.** Conditional probabilities answer the most useful questions: "given the customer is a Prime member, what's the conversion rate?" "given the test is positive, what's the chance of disease?" Conditioning is also the foundation of Bayes' theorem and the whole Bayesian framework.
+
+**How it works.** The denominator changes:
+- Marginal P(A) divides by `len(df)`.
+- Conditional P(A | B) divides by `len(df[mask_B])` — only the B-true rows.
+
+In pandas:
+```python
+P_A_given_B = df.loc[mask_B, 'A'].mean()
+# equivalent:
+P_A_given_B = (mask_A & mask_B).mean() / mask_B.mean()
+```
+
+The first form is more idiomatic: filter to B, then take the mean of A. The second form makes the formula explicit.
+
+**Where it's used.** Conversion rates ("conditional on visiting, fraction who buy"). Test diagnostics ("given positive test, P(disease)"). Recommender systems (P(click | shown)). Every Bayes problem.
+
+**Related terms.**
+- **Joint probability** — the numerator P(A ∩ B).
+- **Marginal probability** — the denominator P(B).
+- **Bayes' theorem** — flips the conditioning direction (see below).
+- **Posterior probability** — Bayesian name for the conditional P(parameter | data).
+
+```python
+P_century_given_50plus = df.loc[df['runs'] > 50, 'century'].mean()
+```
+
+**Gotcha.** Conditional probability is **not symmetric**: P(A | B) ≠ P(B | A) in general. Confusing the two directions is the "prosecutor's fallacy" — P(positive | innocent) is NOT P(innocent | positive).
+
+#### Independence vs mutual exclusivity
+
+> **🪜 Mental model:** *Independence and mutual exclusivity are NEAR-OPPOSITES, not synonyms.* Independent = "knowing one tells you nothing about the other"; mutually exclusive = "if one happens, the other CANNOT".
+
+**What it is.** Two distinct concepts beginners constantly mix up:
+- **Independent**: knowing A happened doesn't change the probability of B. Formally: **P(A ∩ B) = P(A) · P(B)** (equivalently P(B | A) = P(B)). Example: two coin tosses.
+- **Mutually exclusive** (disjoint): A and B cannot both happen. Formally: **P(A ∩ B) = 0**. Example: a single die roll can't simultaneously be 1 AND 6.
+
+Crucially: **mutually-exclusive events with positive probability are NEVER independent.** If A and B are mutually exclusive and both have nonzero probability, then knowing A happened tells you B definitely did NOT — which is the strongest possible dependence.
+
+**Why it matters.** This is one of the top-3 probability interview traps. People hear "they don't both happen" and intuitively think "they're independent" — but the formal meanings are nearly the opposite. The confusion is so common that `kojino/120-Data-Science-Interview-Questions` opens with this exact distinction.
+
+**How it works.**
+- Independence check: `(mask_A & mask_B).mean()` should equal `mask_A.mean() * mask_B.mean()`. If close, they're (approximately) independent.
+- Mutual exclusivity check: `(mask_A & mask_B).mean()` should equal `0`. If both have positive marginal P and joint is 0, they're mutually exclusive AND therefore NOT independent.
+
+**Where it's used.** Every probability interview. Designing A/B tests (treatments are mutually exclusive; not independent of the user being in the test). Setting up a Bayesian model (priors are usually independent assumptions).
+
+**Related terms.**
+- **Disjoint** — synonym for mutually exclusive.
+- **Conditional independence** — A and B independent *given* C; common in ML (naive Bayes).
+- **Pairwise vs mutual independence** — pairwise independence doesn't imply joint (3-way) independence.
+- **Mutually exclusive events** — partition the sample space when also exhaustive.
+
+```python
+# Independence test
+joint = (mask_A & mask_B).mean()
+indep = mask_A.mean() * mask_B.mean()
+print(joint, indep)                # ≈ equal → independent
+```
+
+**Gotcha.** "These two never happen together" does NOT mean "they're independent" — it means the opposite. Independence requires their joint to equal the product of marginals, not zero.
+
+#### Bayes' theorem
+
+> **🪜 Mental model:** *Update belief with evidence.* Start with a prior P(A). See evidence B. Multiply by the likelihood P(B | A), divide by the evidence's marginal P(B). Out comes the posterior P(A | B).
+
+**What it is.** Bayes' theorem is the formula for flipping the conditioning direction:
+**P(A | B) = P(B | A) · P(A) / P(B)**
+
+Translating every symbol:
+- **P(A | B)** — the **posterior**: probability of A given that we observed B.
+- **P(B | A)** — the **likelihood**: probability of seeing B if A were true.
+- **P(A)** — the **prior**: our initial belief in A before seeing any evidence.
+- **P(B)** — the **evidence** (also called the marginal of B): how likely B is overall, summed over all possible causes.
+
+In English: "the new probability of A given evidence B equals the old probability of A multiplied by how likely the evidence is under A, then normalised by how likely the evidence is overall."
+
+**Why it matters.** Bayes is the single most important formula in probability and a cornerstone of ML — naive Bayes classifiers, Bayesian inference, A/B-test posteriors, medical diagnostic reasoning, spam filtering. The famous "factory defects" interview question (60% skilled / 40% unskilled, etc.) is solved by one Bayes application.
+
+**How it works.**
+1. Start with the prior: `P_A = mask_A.mean()`.
+2. Compute the likelihood: `P_B_given_A = df.loc[mask_A, 'B'].mean()`.
+3. Compute the evidence (marginal of B): `P_B = mask_B.mean()`. Or use the law of total probability: `P_B = P_B_given_A * P_A + P_B_given_notA * P_notA`.
+4. Posterior: `P_A_given_B = P_B_given_A * P_A / P_B`.
+
+The result is interpretable: how much does evidence B shift our belief in A? If `P(A | B) > P(A)`, B is supportive evidence; if `<`, it's contradictory.
+
+**Where it's used.** Medical diagnostics (P(disease | positive test)). Spam filters (P(spam | "free money")). Naive Bayes classification. A/B test posteriors. Search relevance scoring. Litigation reasoning (avoiding the prosecutor's fallacy).
+
+**Related terms.**
+- **Prior** — P(A) before evidence.
+- **Posterior** — P(A | B) after evidence.
+- **Likelihood** — P(B | A) — how compatible the evidence is with A.
+- **Evidence / marginal of B** — P(B), the normaliser.
+- **Law of total probability** — P(B) = Σ_a P(B | A=a) · P(A=a); how to compute P(B) when only conditionals are known.
+- **Naive Bayes** — ML classifier built on Bayes + a "features are conditionally independent" assumption.
+
+```python
+P_A      = df['A'].mean()
+P_B_givA = df.loc[df['A'], 'B'].mean()
+P_B      = df['B'].mean()
+P_A_givB = P_B_givA * P_A / P_B
+```
+
+**Gotcha.** People confuse P(A | B) with P(B | A) — they are NOT the same. The "prosecutor's fallacy" (treating P(evidence | innocence) as P(innocence | evidence)) has sent people to jail.
+
+#### Empirical probability via Pandas boolean filtering
+
+> **🪜 Mental model:** *Probability ≈ "filter the rows, count them, divide".* In pandas, that's `mask.mean()` for a single condition or `(mask_A & mask_B).mean()` for joints.
+
+**What it is.** The whole computational pattern for probability in pandas is just boolean-mask arithmetic. Three idioms cover almost everything:
+- **Marginal**: `P(A) = mask_A.mean()`.
+- **Joint**: `P(A ∩ B) = (mask_A & mask_B).mean()`.
+- **Conditional**: `P(A | B) = df.loc[mask_B, 'A'].mean()` (filter to B, then mean of A).
+
+Because `True == 1` and `False == 0`, `mean()` of a boolean Series IS the fraction of True values — i.e., the empirical probability.
+
+**Why it matters.** Once you internalise these three idioms, every probability calculation in EDA is one line. You don't need scipy or a probability package — pandas + boolean masks is the toolkit. This is also exactly what interviews test: "given this DataFrame, compute P(won | scored century)" reduces to one well-written `.loc[mask, 'col'].mean()`.
+
+**How it works.** A boolean Series is internally a uint8 array of 0s and 1s. `.sum()` is the count of True; `.mean()` is `sum / len`. For conditional probability, you `.loc[mask_B, 'A']` to restrict the world to the rows where B is True, then `.mean()` of A in that subset gives P(A | B). The denominator `len(df[mask_B])` is invisible but mathematically baked in.
+
+**Where it's used.** Every probability question on real data. Class balance (`(y == 1).mean()`). Conversion rates. Diagnostic accuracy. Sanity-checking model predictions: `(y_pred == y_true).mean()` is accuracy, which is also `P(prediction correct)`.
+
+**Related terms.**
+- **`.mean()` on bool Series** — the universal "fraction True" calculation.
+- **`.value_counts(normalize=True)`** — alternative for multi-class probabilities (returns the empirical distribution).
+- **`pd.crosstab(a, b, normalize='all')`** — joint distribution table.
+- **Law of large numbers** — why empirical probability approaches the true probability as n grows.
+
+```python
+P_century         = (df['runs'] >= 100).mean()
+P_century_and_won = ((df['runs'] >= 100) & df['Won']).mean()
+P_century_given_won = df.loc[df['Won'], 'runs'].ge(100).mean()
+```
+
+**Gotcha.** `.loc[mask, 'col']` returns a Series; calling `.mean()` is fine. But `.loc[mask]['col'].mean()` is chained indexing and may trigger `SettingWithCopyWarning` on assignment. Stick to single-step `.loc[mask, 'col']`.
+
 ### 🪞 Basic → Intermediate → Advanced — conditional probability via pandas
 
 **Basic** — what fraction of matches satisfy a condition? That's a marginal.
@@ -748,24 +2099,26 @@ either = pd.concat([df_A, df_B]).drop_duplicates(subset='match_id')
 P_union = len(either) / total
 ```
 
-### 🧠 Concept cheat sheet
+### 🧠 Concept cheat sheet (recap)
 
-| Concept | One-liner |
-|---|---|
-| Sample space (S) | Set of all possible outcomes |
-| Outcome | A single result in S |
-| Event | A subset of S (e.g., "Sachin scores > 50") |
-| Mutually exclusive | Cannot co-occur: P(A ∩ B) = 0 |
-| Independent | P(A ∩ B) = P(A) · P(B) |
-| Exhaustive | P(A₁ ∪ A₂ ∪ … ∪ Aₙ) = 1 |
-| Marginal P(A) | Probability of A regardless of other events |
-| Joint P(A ∩ B) | Both A and B occur |
-| Conditional P(A \| B) | A given B has occurred: P(A ∩ B) / P(B) |
-| Complement P(A′) | 1 − P(A) |
-| Addition rule | P(A ∪ B) = P(A) + P(B) − P(A ∩ B) |
-| Multiplication rule | P(A ∩ B) = P(A) · P(B \| A) |
-| Bayes' Theorem | P(A \| B) = P(B \| A) · P(A) / P(B) |
-| Empirical probability | Count of favorable outcomes ÷ total in your data |
+> Recap table — every row 2–3 lines: *what it is + when you reach for it*. Full definitions are in [the guided walkthrough above](#4g-guided).
+
+| Concept | What it is | When you use it |
+|---|---|---|
+| **Sample space (S)** | The set of every possible outcome of the random experiment. In pandas it's the DataFrame; each row is one outcome. | The first sentence of every probability answer: "what is S?" Defines what 100% means. |
+| **Event** | Any subset of S — a boolean mask over the DataFrame. "Sachin scored > 50" = `df['runs'] > 50`. | Whenever you express a condition; every probability question is "what's the P of this event?" |
+| **Set operations (∪, ∩, ¬)** | Union (`|`), intersection (`&`), complement (`~`) on boolean masks. Always parenthesize comparisons. | Any compound-condition probability. Translates set algebra into pandas code. |
+| **Probability** | For equal-likely outcomes, P(A) = |A| / |S|. In pandas: `mask.mean()` — mean of a bool Series IS the fraction True. | Every empirical probability calc — class balance, conversion rate, hit rate. Always in [0, 1]. |
+| **Addition rule** | P(A ∪ B) = P(A) + P(B) − P(A ∩ B). Subtraction corrects the double-count of the overlap. | "P(A or B)" questions. Subtraction drops if A and B are mutually exclusive. |
+| **Multiplication rule** | P(A ∩ B) = P(A) · P(B \| A). Reduces to P(A) · P(B) under independence. | "P(both A and B)" questions. Foundation of Bayes. |
+| **Complement rule** | P(A′) = 1 − P(A). Always true. | "At least one" trick: P(at least one) = 1 − P(none). Sanity check (P + complement = 1). |
+| **Marginal P(A)** | Probability of A ignoring all other variables. `df['A'].mean()` with no filtering. | Baseline / overall rate — class balance, prior in Bayes. |
+| **Joint P(A ∩ B)** | Probability both A and B occur. `(mask_A & mask_B).mean()`. | Contingency tables, confusion matrices, dependent-event analysis. |
+| **Conditional P(A \| B)** | A given B occurred: P(A ∩ B) / P(B). The denominator shrinks from \|S\| to \|B\|. In pandas: `df.loc[mask_B, 'A'].mean()`. | "Given X happened, what's P(Y)?" questions — conversion, diagnostic accuracy, recommender hit-rate. |
+| **Mutually exclusive** | A and B cannot both happen — P(A ∩ B) = 0. NOT the same as independent. | Disjoint outcomes (one roll can't be 1 AND 6). Simplifies addition rule. |
+| **Independence** | Knowing A tells you nothing about B — P(A ∩ B) = P(A) · P(B). The OPPOSITE of mutually exclusive (when both have positive P). | Coin tosses, separate trials. Simplifies multiplication rule. Top interview confusion. |
+| **Bayes' Theorem** | P(A \| B) = P(B \| A) · P(A) / P(B). Flips conditioning direction; turns prior + likelihood into posterior. | Diagnostics, naive Bayes, A/B test posteriors. Any "given evidence, update belief" question. |
+| **Empirical probability** | What you compute from data (frequency in observed sample). Converges to theoretical P as n grows (LLN). | Every pandas probability calc. Always report sample size. |
 
 ### ⚙️ Top APIs (Pandas idioms for probability)
 
@@ -871,43 +2224,60 @@ P_A_givB = (P_B_givA * P_A) / P_B
 
 | Term | Definition |
 |---|---|
-| `agg` | Apply one or more aggregation functions to columns/groups |
-| Aggregation | Reducing rows to a summary statistic (sum, mean, count, …) |
-| Apply | Run a function per-row, per-column, or per-group |
-| Bayes' Theorem | P(A\|B) = P(B\|A)·P(A) / P(B) |
-| Binning | Group continuous values into discrete intervals |
-| `concat` | Stack DataFrames along an axis without aligning on a key |
-| Conditional probability | P(A\|B) = P(A ∩ B) / P(B) |
-| Correlation (Pearson r) | Linear association in [-1, 1]; 0 means no LINEAR association |
-| `cut` | Bin by value range — explicit edges |
-| Datetime accessor `.dt` | Namespace for extracting components of datetime Series |
-| Drop duplicates | Remove repeated rows (full or subset) |
-| Event | Subset of the sample space |
-| Filter (group) | Keep rows whose group passes a predicate |
-| `fillna` | Replace NaN with constant / mean / forward-fill etc. |
-| GroupBy | Split rows into groups by key(s) for split-apply-combine |
-| Heatmap | Color-encoded matrix |
-| Hue | Categorical color encoding in Seaborn plots |
-| Inner join | Keep only matched keys |
-| `isna` / `isnull` | Identical: boolean mask of NaN |
-| Joint probability | P(A ∩ B) |
-| KDE | Kernel Density Estimate — smooth distribution curve |
-| Left join | All rows from the left + matches from the right |
-| Marginal probability | P(A) regardless of other events |
-| Melt | Wide → long: stack value columns into rows |
-| Merge | Join on a key — SQL-style |
-| Mutually exclusive | P(A ∩ B) = 0 |
-| Outer join | Union of keys, NaN where missing |
-| Pair plot | Grid of pairwise scatter + diagonal distributions |
-| Pivot | Long → wide. `pivot` strict; `pivot_table` aggregates duplicates |
-| `qcut` | Bin by quantile — equal-count buckets |
-| Right join | All rows from the right + matches from the left |
-| Sample space | Set of all possible outcomes |
-| Split-apply-combine | The GroupBy pattern |
-| Stacked plot | Bars or areas where the segment heights are summed |
-| `.str` accessor | Vectorized string operations on a Series |
-| Univariate / Bivariate / Multivariate | 1 / 2 / 3+ variables |
-| Violin plot | Box plot + KDE — shows distribution shape |
+| **`agg`** | A pandas method that applies one or more aggregation functions to columns or groups in a single call. The modern "named aggregation" form (`agg(name=('col', 'fn'))`) lets you control both source column and output name. Use it to compute multiple summary stats per group at once. ([walkthrough](#1g-guided)) |
+| **Aggregation** | Reducing many rows down to one summary value — `sum`, `mean`, `count`, `min`, `max`, `std`, `nunique`. The "collapse" step in split-apply-combine. Every report query is built from these. ([walkthrough](#1g-guided)) |
+| **`apply`** | The universal escape hatch in pandas. Runs a Python function on every element (`Series.apply`), every row/column (`DataFrame.apply` with `axis=`), or every group (`GroupBy.apply`). Powerful but slow — it usually breaks the vectorised C path. ([walkthrough](#1g-guided)) |
+| **Bayes' Theorem** | The formula that flips conditioning direction: P(A\|B) = P(B\|A) · P(A) / P(B). Translated: posterior equals likelihood times prior divided by evidence. The foundation of Bayesian inference, naive Bayes classifiers, and diagnostic reasoning. ([walkthrough](#4g-guided)) |
+| **Binning** | Grouping continuous values into a small number of discrete buckets. Two pandas tools: `pd.cut` (by value edges) and `pd.qcut` (by quantile, equal-count). Produces a `Categorical` ready for groupby and plotting. ([walkthrough](#2g-guided)) |
+| **Box plot** | A per-group plot showing the 5-number summary (min, Q1, median, Q3, max) plus outliers beyond 1.5×IQR. Compresses a distribution into a tiny, comparable shape — perfect for side-by-side group comparisons. ([walkthrough](#3g-guided)) |
+| **Complement rule** | P(A′) = 1 − P(A). The single most powerful trick in probability: when "at least one" is hard to compute directly, compute "none" and subtract from 1. ([walkthrough](#4g-guided)) |
+| **`pd.concat`** | Stacks DataFrames along an axis — `axis=0` glues more rows, `axis=1` glues more columns — without aligning on any key. Use for combining files of the same schema or for side-by-side comparison tables. ([walkthrough](#1g-guided)) |
+| **Conditional probability** | P(A \| B) = P(A ∩ B) / P(B) — the probability of A given that B has occurred. The denominator shrinks from \|S\| (whole sample space) to \|B\| (only rows where B is true). In pandas: `df.loc[mask_B, 'A'].mean()`. ([walkthrough](#4g-guided)) |
+| **Correlation (Pearson r)** | Linear association between two numerics, range [-1, +1]. r = 0 means **no linear relationship**, but non-linear relationships may still exist — the canonical interview trap. For monotonic non-linear, use Spearman. ([walkthrough](#3g-guided)) |
+| **Count plot** | A bar plot where each bar's height is the count of rows in that categorical value. Equivalent to `value_counts().plot.bar()`. Use it on **categorical** columns; for continuous columns, use `histplot` instead. ([walkthrough](#2g-guided)) |
+| **`pd.cut`** | Binning by **value range** — you pass explicit edges (`[0, 100, 500, ∞]`) and pandas places each value into the matching bucket. Bin widths are user-defined; counts per bin can be very unequal. ([walkthrough](#2g-guided)) |
+| **Datetime accessor `.dt`** | A namespace on datetime Series exposing `.dt.year`, `.dt.month`, `.dt.day_name()`, `.dt.dayofweek`, `.dt.isocalendar().week`, `.dt.strftime(...)`. Mirrors the `.str` accessor — vectorised, C-speed. ([walkthrough](#2g-guided)) |
+| **`dropna`** | Removes rows (or columns with `axis=1`) that have missing values. Parameters: `how='any'`/`'all'`, `subset=` (only check these columns), `thresh=k` (keep rows with ≥ k non-NaN). Default is often too aggressive — always pass `subset=`. ([walkthrough](#2g-guided)) |
+| **`duplicated` / `drop_duplicates`** | `duplicated()` returns a boolean mask of repeats; `drop_duplicates()` removes them. `keep='first'` (default), `'last'`, or `False` (drop **all** copies). The first sanity check on any new dataset. ([walkthrough](#1g-guided)) |
+| **Empirical probability** | Probability computed by counting rows in your data (favourable ÷ total). Converges to the theoretical value as sample size grows (Law of Large Numbers). Always report your sample size when quoting an empirical P. ([walkthrough](#4g-guided)) |
+| **Event** | A subset of the sample space — any condition you can express as a boolean mask on the DataFrame. Examples: "Sachin scores > 50", "order was placed on a weekend". ([walkthrough](#4g-guided)) |
+| **Faceting** | Auto-generating a grid of subplots, one per category, via `sns.FacetGrid` or `col=`/`row=` parameters on `relplot`/`catplot`. The clean way to show the same plot for each level of a category. ([walkthrough](#3g-guided)) |
+| **`fillna`** | Replaces NaN with a scalar, a per-column dict, or a directional fill (`ffill`/`bfill`). The leak-free production version is `sklearn.impute.SimpleImputer` (fit on train, apply to test). ([walkthrough](#2g-guided)) |
+| **GroupBy** | A lazy split-apply-combine engine: split rows into bins by key(s), apply a function in each bin, combine the results. Maps 1:1 to SQL `GROUP BY`. The most-asked pandas concept in interviews. ([walkthrough](#1g-guided)) |
+| **Group filter** | `groupby('k').filter(fn)` — keeps the **rows** belonging to groups whose function returns True. Returns a DataFrame, not a GroupBy object. Use for "keep only users with > 5 orders" patterns. ([walkthrough](#1g-guided)) |
+| **Heatmap** | A color-encoded 2D matrix, drawn with `sns.heatmap(matrix, annot=True, fmt='.2f', cmap='coolwarm', center=0)`. Great for correlation matrices and confusion matrices. ([walkthrough](#3g-guided)) |
+| **Histogram** | A plot that bins a continuous variable into ranges and shows one bar per range. `sns.histplot(data=df, x='col', bins=20, kde=True)`. Use on **numeric** columns; for categories use count plot. ([walkthrough](#2g-guided)) |
+| **Hue** | A seaborn parameter (`hue='col'`) that colours points/lines/boxes by a categorical variable, adding a 3rd dimension to a 2D plot. Bucket the column first if there are too many categories. ([walkthrough](#3g-guided)) |
+| **Independence** | Two events A and B are independent if P(A ∩ B) = P(A) · P(B) (equivalently P(B \| A) = P(B)) — knowing A tells you nothing about B. The OPPOSITE of mutually exclusive when both events have positive probability. ([walkthrough](#4g-guided)) |
+| **Inner join** | `pd.merge(..., how='inner')` — keep only rows where the key matches on **both** sides. The default and smallest possible join result. ([walkthrough](#1g-guided)) |
+| **`isna` / `isnull`** | Identical methods — return a boolean mask True where the cell is missing (NaN/None/NaT). The standard idiom is `df.isna().sum()` for per-column NaN count, the first line of EDA. ([walkthrough](#1g-guided)) |
+| **Joint probability** | P(A ∩ B) — the probability that A and B occur together. For independent events factors as P(A) · P(B); in general requires the multiplication rule P(A) · P(B \| A). In pandas: `(mask_A & mask_B).mean()`. ([walkthrough](#4g-guided)) |
+| **KDE (Kernel Density Estimate)** | A smoothed estimate of a continuous distribution — like a histogram but with a continuous curve instead of bars. `sns.kdeplot` for the curve alone; `histplot(kde=True)` overlays it on a histogram. ([walkthrough](#2g-guided)) |
+| **Left join** | `pd.merge(..., how='left')` — keep **every** row from the left; bolt on matching info from the right (NaN where no match). The most common join type in practice. ([walkthrough](#1g-guided)) |
+| **Line plot** | A plot connecting `(x, y)` points sorted by x with line segments. Only meaningful when x has a natural order (time, sequence, rank). For unordered x, use bar or scatter. ([walkthrough](#3g-guided)) |
+| **Marginal probability** | P(A) — the unconditional probability of A, without conditioning on anything. The "overall rate" or "baseline." Computed in pandas as `df['A'].mean()` with no filter. ([walkthrough](#4g-guided)) |
+| **`pd.melt`** | Wide → long reshape. Stacks the columns listed in `value_vars` into one tall column, leaving `id_vars` columns repeated as identifiers. Prepares data for plotting and grouping. ([walkthrough](#2g-guided)) |
+| **`pd.merge`** | SQL-style JOIN on a shared key. `how=` controls the four modes (inner/outer/left/right). The first step of almost every multi-table analysis; the most-asked pandas interview topic. ([walkthrough](#1g-guided)) |
+| **Multiplication rule** | P(A ∩ B) = P(A) · P(B \| A). Simplifies to P(A) · P(B) only when A and B are independent. Foundation of Bayes' theorem and the chain rule. ([walkthrough](#4g-guided)) |
+| **Mutually exclusive** | A and B cannot both happen — P(A ∩ B) = 0. The OPPOSITE of independence when both events have positive probability. Classic interview trap that beginners confuse with independence. ([walkthrough](#4g-guided)) |
+| **Missing values (NaN)** | Pandas placeholder for "no value", appearing as `np.nan` (float), `None`, or `NaT` (datetime). NaN is contagious in math; `NaN != NaN`. Use `.isna()` to detect, `fillna`/`dropna` to handle. ([walkthrough](#2g-guided)) |
+| **Outer join** | `pd.merge(..., how='outer')` — keep **every** key from either side; NaN-fill columns where the other side has no match. Used for data-quality audits with `indicator=True`. ([walkthrough](#1g-guided)) |
+| **Pair plot** | `sns.pairplot(df)` — an N×N grid: scatter for every pair of numeric columns, distribution on the diagonal. First-look EDA on small (~5–8 col) datasets; doesn't scale to 30+ columns. ([walkthrough](#3g-guided)) |
+| **Pivot / Pivot table** | Long → wide reshape. `pivot()` is strict (raises on duplicate (index, col) pairs); `pivot_table()` aggregates them silently with `aggfunc`. Use `pivot_table` on real data and always pass `aggfunc=` to document intent. ([walkthrough](#2g-guided)) |
+| **Probability** | For equal-likely outcomes, P(A) = \|A\| / \|S\|. In pandas, `mask.mean()` is the empirical probability because mean of a bool Series equals fraction True. Always in [0, 1]. ([walkthrough](#4g-guided)) |
+| **`pd.qcut`** | Binning by **quantile** — pandas picks the cut-points so each bucket has the same row count. Use for quartile/decile analysis or robust binning on skewed data. ([walkthrough](#2g-guided)) |
+| **Right join** | `pd.merge(..., how='right')` — keep every row from the right side. Almost never used in practice; people prefer to swap arguments and use `how='left'`. ([walkthrough](#1g-guided)) |
+| **Sample space (S)** | The set of every possible outcome of the random experiment. In data analysis, S is the DataFrame itself — each row is one outcome. Defining S precisely is the first step of any probability calculation. ([walkthrough](#4g-guided)) |
+| **Scatter plot** | One dot per row at `(x, y)`. The canonical plot for the relationship between two numeric variables. Always look at the scatter before trusting a correlation number. ([walkthrough](#3g-guided)) |
+| **Set operations on events** | Union (`|` = "A or B"), intersection (`&` = "A and B"), complement (`~` = "not A"). In pandas, these are bitwise operators on boolean masks — always parenthesize each comparison. ([walkthrough](#4g-guided)) |
+| **`sort_values`** | Reorders rows by one or more columns. With a list `by=['a','b']`, sorts by `a` then breaks ties with `b`. `ascending=` accepts a list when `by` is a list. ([walkthrough](#1g-guided)) |
+| **Split-apply-combine** | The three-step GroupBy pattern coined by Hadley Wickham: **split** rows into bins by key, **apply** a function in each bin, **combine** results back. Understanding it disambiguates `.agg`, `.transform`, `.filter`, `.apply`. ([walkthrough](#1g-guided)) |
+| **Stacked plot** | Bar (or area) plot where each bar is split into colored segments showing composition by a 2nd variable. **100%-stacked** rescales each bar to 100% so you compare proportions, not totals. ([walkthrough](#3g-guided)) |
+| **`.str` accessor** | Namespace of vectorised string operations on a Series — `contains`, `extract`, `split`, `replace`, `lower`. Regex by default. Pass `na=False` for safe boolean indexing. ([walkthrough](#2g-guided)) |
+| **Subplots** | A grid of independent plotting areas in one figure, built with `fig, axes = plt.subplots(rows, cols)`. Plot into each via `ax=axes[i]`. Call `plt.tight_layout()` after to avoid label overlap. ([walkthrough](#3g-guided)) |
+| **`pd.to_datetime`** | Parses strings (or numbers) into pandas `datetime64[ns]`. Pass `format=` for speed and to disambiguate locale-dependent formats; use `errors='coerce'` to turn parse failures into `NaT` instead of raising. ([walkthrough](#2g-guided)) |
+| **Univariate / Bivariate / Multivariate** | One / two / three-or-more variables in a plot. Univariate plots show distributions (histogram, countplot); bivariate show relationships (scatter, line, box); multivariate use hue/size/subplots. ([walkthrough](#2g-guided), [M3 walkthrough](#3g-guided)) |
+| **Violin plot** | A box plot fused with a kernel-density curve — shows both the 5-number summary and the distribution shape (bimodal? skewed?). Use when shape matters; otherwise box plot is simpler. ([walkthrough](#3g-guided)) |
 
 [🔝 Back to top](#top)
 
