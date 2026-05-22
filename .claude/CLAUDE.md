@@ -211,6 +211,23 @@ python3 scripts/add_colab_badge.py path/to/notebook.ipynb
 - If a notebook is **renamed or moved**, the embedded URL is now wrong. Delete the existing badge cell and re-run the script so it regenerates the URL against the new path.
 - The script's `GH_USER`, `GH_REPO`, and `BRANCH` constants live at the top of `scripts/add_colab_badge.py` — update them if the repo is ever forked or renamed.
 
+### Also: surface the Colab link from the README
+
+The badge inside the notebook only helps if GitHub renders the notebook. When a notebook exceeds GitHub's 1 MB render limit (large screenshots, big base64 attachments, fat outputs), the user sees *"this file is too big to display"* and the badge is unreachable. To prevent the notebook from becoming a dead end, **every notebook entry in the root `README.md` must include an inline "Open in Colab" link next to its 📂 entry.**
+
+Use this template per notebook line in the README:
+
+```markdown
+- 📂 [<Notebook title>](./<encoded-folder-path>/) — *short description* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/<encoded-notebook-path>" target="_blank">▶️ Open in Colab</a>
+```
+
+If the notebook is known to exceed GitHub's render limit, also include a one-line `> ⚠️` callout under the module's notebook list explaining that GitHub's preview will fail and the Colab link is the way in.
+
+**When a notebook bloats past the render limit** (typical cause: someone pasted screenshots into markdown cells, producing inline `data:image/...;base64,...` URIs):
+- Don't try to commit-and-pray — confirm with `wc -c` or `ls -lh` first; anything > 1 MB will fail to render on GitHub.
+- Common fix is to extract inline base64 images to a sibling `images/` folder and replace the markdown with relative-path links — drops file size by 100× or more. Ask the user before doing this as it's a substantial rewrite of the notebook.
+- Until shrunk, the README's inline Colab link is the user's primary access path — keep it accurate.
+
 ## Mental models — required for every concept
 
 Every concept introduced in a guide must come with a **mental model**: a one-sentence analogy, visual, or rule-of-thumb that the brain remembers when the formal definition won't. Mental models go in the module's 🪜 section *and* are sprinkled inline next to any concept that earns one in a cheat sheet, Q&A, or gotcha.
