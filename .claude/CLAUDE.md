@@ -177,6 +177,39 @@ When the user drops new notebooks into **any** module folder (existing or brand-
    - If the notebook fits a topic that already has a master guide → extend that guide's modules / mapping.
    - If it introduces a new topic cluster → create a new `<Topic>_Revision_Guide.md` at the module root and add it to the README + cross-link from sibling guides.
 5. **Update the parent module's master guide mapping table** so it points to the new guide/section.
+6. **Add an "Open in Colab" badge** as the first markdown cell of every new notebook (see "Open in Colab badge" below). Run `python3 scripts/add_colab_badge.py` after dropping new notebooks in — the script is idempotent and processes the whole repo by default.
+
+## Open in Colab badge — required on every notebook
+
+GitHub renders `.ipynb` files as static HTML — no collapsible outputs, no interactivity. The fix is a one-click jump into Google Colab, where the notebook becomes fully interactive (collapsible outputs, runnable cells, save-to-Drive). Every notebook in the repo carries an **Open in Colab** badge as its first markdown cell so the reader is one click away from the Colab UI.
+
+**The badge cell looks like this** (URL points back to this notebook's path on GitHub via Colab's `/github/<user>/<repo>/blob/<branch>/<path>` route):
+
+```markdown
+<a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/<URL-encoded-path>" target="_blank">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+```
+
+**Don't hand-edit notebooks for this.** Use the helper script — it discovers notebooks, URL-encodes paths correctly (spaces → `%20`, parentheses kept as-is to match GitHub's style), and is idempotent (skips notebooks that already have the badge).
+
+```bash
+# Process every .ipynb in the repo
+python3 scripts/add_colab_badge.py
+
+# Process a specific module
+python3 scripts/add_colab_badge.py "Data Foundation"
+python3 scripts/add_colab_badge.py "5.ML Coding (CV)"
+
+# Process specific files
+python3 scripts/add_colab_badge.py path/to/notebook.ipynb
+```
+
+**Rules:**
+- Every new notebook gets the badge before being committed — run the script as the last step of the "new notebook" workflow above.
+- The badge **must be the first cell** (a markdown cell). The script inserts at index 0; don't reorder it afterward.
+- If a notebook is **renamed or moved**, the embedded URL is now wrong. Delete the existing badge cell and re-run the script so it regenerates the URL against the new path.
+- The script's `GH_USER`, `GH_REPO`, and `BRANCH` constants live at the top of `scripts/add_colab_badge.py` — update them if the repo is ever forked or renamed.
 
 ## Mental models — required for every concept
 
