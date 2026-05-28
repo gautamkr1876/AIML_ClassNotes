@@ -62,11 +62,17 @@ Three companion master guides covering the NumPy → Pandas → applied EDA arc:
 
 ### 🌱 Module 6: [Basic of GenAI & AI Agents](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/)
 
+Companion reference at the module root:
+
+- 📝 **[Top AI Interview Questions & Answers](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/Top%20AI%20Interview%20Questions%20%26%20Answers.md)** — production-flavored GenAI Q&A (RAG debugging, prompt design, evals, agents).
+
 #### Notebooks
 
-- 📂 [Introduction to AI Engineering](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/Introduction%20to%20AI%20Engineering/) — *intro to AI engineering concepts* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/Introduction%20to%20AI%20Engineering/Introduction%20to%20AI%20Engineering.ipynb" target="_blank">▶️ Open in Colab</a>
+- 📂 [1. Introduction to AI Engineering](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/Introduction%20to%20AI%20Engineering/) — *intro to AI engineering concepts* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/Introduction%20to%20AI%20Engineering/Introduction%20to%20AI%20Engineering.ipynb" target="_blank">▶️ Open in Colab</a>
+- 📂 [2. Refresher: Modern Text & Image AI Model Architectures](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/2.%20Refresher%3A%20Modern%20Text%20%26%20Image%20AI%20Model%20Architectures/) — *Decoder-only transformers (GPT → Llama), self-attention, multi-head, causal masking, positional encoding (RoPE), Vision Transformers, PyTorch walkthrough* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/2.%20Refresher%3A%20Modern%20Text%20%26%20Image%20AI%20Model%20Architectures/L2_Refresher_Modern_Text_%26_Image_AI_Model_Architectures.ipynb" target="_blank">▶️ Open in Colab</a>
+- 📂 [3. Getting Started with Text Generation LLM APIs (OpenAI API)](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/3.%20Getting%20started%20with%20Text%20Generation%20LLM%20APIs%20%28OpenAI%20API%29/) — *Env & API setup (OpenAI / Anthropic / HuggingFace), generation vs reasoning models, base/instruct/chat models, chat templates, decoding & generation strategies* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/3.%20Getting%20started%20with%20Text%20Generation%20LLM%20APIs%20%28OpenAI%20API%29/Getting_Started_with_Text_Generation_LLM_APIs.ipynb" target="_blank">▶️ Open in Colab</a>
 
-> ⚠️ The notebook above is >25 MB (lots of embedded screenshots), so GitHub's preview shows *"this file is too big to display"*. Use the **Open in Colab** link to view and run it — Colab renders the full notebook with all images.
+> ⚠️ All Module 6 notebooks are >25 MB (lots of embedded screenshots), so GitHub's preview shows *"this file is too big to display"*. Use the **Open in Colab** link to view and run them — Colab renders the full notebook with all images.
 
 ---
 
