@@ -44,6 +44,8 @@ Three companion master guides covering the NumPy → Pandas → applied EDA arc:
   - 📚 [CV1 Jargon Card](./5.ML%20Coding%20(CV)/1.Intro%20to%20CV%20and%20CNN%20Fundamentals/CV_CNN_Jargon_Card.md) — *side-reference dictionary*
   - 📄 [CV1 Deep Dive](./5.ML%20Coding%20(CV)/1.Intro%20to%20CV%20and%20CNN%20Fundamentals/CV1_CNN_Fundamentals_Interview_Prep_Guide.md)
 - 📂 [2. Tackling Overfitting in CNN](./5.ML%20Coding%20(CV)/2.Tackling%20Overfitting%20in%20CNN/) — *Dropout, BatchNorm, L2, augmentation, EarlyStopping, GlobalAveragePooling. 51% → 78% test acc* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/5.ML%20Coding%20(CV)/2.Tackling%20Overfitting%20in%20CNN/Tackling_Overfitting_in_CNN.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [CV2 Reading Brief](./5.ML%20Coding%20(CV)/2.Tackling%20Overfitting%20in%20CNN/CV2_Overfitting_Reading_Brief.md) — *pre-read companion, ~22 min*
+  - 📚 [CV2 Jargon Card](./5.ML%20Coding%20(CV)/2.Tackling%20Overfitting%20in%20CNN/CV2_Overfitting_Jargon_Card.md) — *side-reference dictionary*
   - 📄 [CV2 Deep Dive](./5.ML%20Coding%20(CV)/2.Tackling%20Overfitting%20in%20CNN/CV2_Tackling_Overfitting_Interview_Prep_Guide.md)
 - 📂 [3. Transfer Learning](./5.ML%20Coding%20(CV)/3.Transfer%20learning%201/) — *Pretrained VGG/ResNet, feature extraction, freezing, fine-tuning. 12% → 79% on 737 images* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/5.ML%20Coding%20(CV)/3.Transfer%20learning%201/Transfer_learning_1.ipynb" target="_blank">▶️ Open in Colab</a>
   - 📄 [CV3 Deep Dive](./5.ML%20Coding%20(CV)/3.Transfer%20learning%201/CV3_Transfer_Learning_Interview_Prep_Guide.md)
