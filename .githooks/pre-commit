@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#
+# Pre-commit secret scanner for AIML_ClassNotes.
+#
+# Blocks a commit if any STAGED change adds a hardcoded API key / secret.
+# This exists because lecture notebooks have repeatedly shipped a live
+# OpenAI key in plaintext (lectures 6–10), which GitHub push-protection
+# then rejects. Catch it here, before it ever enters a commit.
+#
+# Bypass (use only when you are CERTAIN a match is a false positive):
+#     git commit --no-verify
+#
+# Setup (one-time, already done in this repo):
+#     git config core.hooksPath .githooks
+#
+set -euo pipefail
+
+# High-confidence secret patterns (ERE). Tuned to avoid false positives:
+#  - "sk-proj-…"  OpenAI project keys
+#  - "sk-<32+ alnum>"  OpenAI legacy keys (no '-'/'_' inside, so URLs like
+#                       "…desk-white__AA-1234" do NOT match)
+#  - "hf_…"  HuggingFace tokens
+#  - "AKIA…" AWS access key IDs
+#  - "ghp_…"/"github_pat_…" GitHub tokens
+#  - "xox[baprs]-…" Slack tokens
+#  - "AIza…" Google API keys
+PATTERNS=(
+  'sk-proj-[A-Za-z0-9_-]{20,}'
+  'sk-[A-Za-z0-9]{32,}'
+  'hf_[A-Za-z0-9]{30,}'
+  'AKIA[0-9A-Z]{16}'
+  'ghp_[A-Za-z0-9]{36}'
+  'github_pat_[A-Za-z0-9_]{60,}'
+  'xox[baprs]-[A-Za-z0-9-]{10,}'
+  'AIza[0-9A-Za-z_-]{35}'
+)
+
+# A hardcoded `api_key = "literal"` / `"OPENAI_API_KEY": "literal"` assignment,
+# EXCLUDING obvious non-secrets (getpass, env lookups, empty, placeholders).
+ASSIGN_PATTERN='(api[_-]?key|secret|token|password)["'"'"' ]*[:=][[:space:]]*["'"'"'][^"'"'"']{12,}["'"'"']'
+ASSIGN_ALLOW='getpass|os\.environ|os\.getenv|getenv|<[A-Za-z0-9_]+>|your-|YOUR_|xxx|XXX|\.\.\.|example|placeholder|REDACTED'
+
+# Collect staged, added text lines (skip binary; skip deletions; skip the
+# diff header '+++' lines). --diff-filter=ACM = added/copied/modified.
+#
+# Then strip embedded base64 image payloads (data URIs and long unbroken
+# base64 runs) — notebooks embed screenshots as base64, and those blobs
+# trigger false positives on prefix patterns like Google's "AIza…". A real
+# key literal is short and contains '-'/'_'/quotes, so it never looks like a
+# 200+ char unbroken base64 run.
+added_lines="$(git diff --cached --no-color -U0 --diff-filter=ACM 2>/dev/null \
+  | grep -E '^\+' | grep -Ev '^\+\+\+' \
+  | grep -Ev 'data:image/|;base64,|[A-Za-z0-9+/]{200,}' || true)"
+
+[ -z "$added_lines" ] && exit 0
+
+# Truncate each reported line so a stray long token can't dump megabytes.
+trunc() { cut -c1-200; }
+
+violations=""
+
+for pat in "${PATTERNS[@]}"; do
+  hit="$(printf '%s\n' "$added_lines" | grep -E "$pat" | trunc || true)"
+  [ -n "$hit" ] && violations+=$'\n'"  [pattern: $pat]"$'\n'"$hit"
+done
+
+# api_key="literal" assignments that are NOT placeholders / env lookups
+assign_hit="$(printf '%s\n' "$added_lines" \
+  | grep -Ei "$ASSIGN_PATTERN" \
+  | grep -Eiv "$ASSIGN_ALLOW" | trunc || true)"
+[ -n "$assign_hit" ] && violations+=$'\n'"  [hardcoded credential assignment]"$'\n'"$assign_hit"
+
+if [ -n "$violations" ]; then
+  echo ""
+  echo "🚫 COMMIT BLOCKED — possible secret(s) in staged changes:"
+  echo "------------------------------------------------------------"
+  printf '%s\n' "$violations"
+  echo "------------------------------------------------------------"
+  echo "Remove the secret (use getpass / an env var), re-stage, and commit again."
+  echo "For notebooks: clear the key from the cell, then re-add the file."
+  echo ""
+  echo "If this is genuinely a false positive, bypass with:  git commit --no-verify"
+  echo ""
+  exit 1
+fi
+
+exit 0

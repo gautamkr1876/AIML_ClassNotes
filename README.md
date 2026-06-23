@@ -92,9 +92,34 @@ Companion reference at the module root:
   - 📖 [Prompt Engineering: Security Reading Brief](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/7.%20%20Prompt%20Engineering%3A%20Security/PromptEng_Security_Reading_Brief.md) — *pre-read companion, ~25 min*
   - 📚 [Prompt Engineering: Security Jargon Card](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/7.%20%20Prompt%20Engineering%3A%20Security/PromptEng_Security_Jargon_Card.md) — *side-reference dictionary*
 - 📂 [8. Retrieval-Augmented Generation (RAG) Introduction](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/8.%20Retrieval-Augmented%20Generation%20%28RAG%29%20Introduction/) — *Why RAG exists; 6 chunking strategies (fixed/overlap/semantic/recursive/late/agentic); vector DBs with ChromaDB; semantic + metadata-filtered search; ANN/HNSW at scale; bi-encoders, HyDE, cross-encoder reranking (two-stage retrieval); full retrieval + generation pipeline* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/8.%20Retrieval-Augmented%20Generation%20%28RAG%29%20Introduction/L8%20%28Jun%209th%29_%20Retrieval_Augmented_Generation_%28RAG%29_Introduction.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [RAG (Intro) Reading Brief](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/8.%20Retrieval-Augmented%20Generation%20%28RAG%29%20Introduction/RAG_Intro_Reading_Brief.md) — *pre-read companion, ~24 min*
+  - 📚 [RAG (Intro) Jargon Card](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/8.%20Retrieval-Augmented%20Generation%20%28RAG%29%20Introduction/RAG_Intro_Jargon_Card.md) — *side-reference dictionary*
 - 📂 [9. Embeddings Deep Dive](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/9.%20Embeddings%20Deep%20Dive/) — *What embeddings are; similarity & 2D/3D visualization; distance metrics (cosine/dot/L2/L1) + normalization; ways to generate embeddings (HF Sentence Transformers, OpenAI API); bi- vs cross-encoders; why/how SBERT was built & trained (Siamese, NLI, triplet loss); fine-tuning bi-encoder (triplet) + cross-encoder (BCE); hard-negative mining; retrieval metrics (Precision/Recall/Hits/MRR/MAP/NDCG@K); Opik eval; fine-tuned RAG with GPT-4o-mini* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/9.%20Embeddings%20Deep%20Dive/L9_%28Jun%2011th%29%20-%20Embeddings%20Deep%20Dive.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [Embeddings Deep Dive Reading Brief](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/9.%20Embeddings%20Deep%20Dive/Embeddings_Reading_Brief.md) — *pre-read companion, ~25 min*
+  - 📚 [Embeddings Deep Dive Jargon Card](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/9.%20Embeddings%20Deep%20Dive/Embeddings_Jargon_Card.md) — *side-reference dictionary*
+- 📂 [10. Multimodal & Tabular RAG](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/10.%20Multimodal%20%26%20Tabular%20RAG/) — *Multimodal RAG: why text-only RAG fails on images; CLIP (dual encoder, shared embedding space, contrastive learning); cross-modal search (text→image / image→image); ChromaDB; GPT-4o Vision generation; then ColPali (PDF pages as images, no OCR) + Qwen2-VL for document VQA on IKEA manuals* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/10.%20Multimodal%20%26%20Tabular%20RAG/L10%20%28Jun%2016th%29_%20Multimodal%20RAG.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [Multimodal RAG Reading Brief](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/10.%20Multimodal%20%26%20Tabular%20RAG/MultimodalRAG_Reading_Brief.md) — *pre-read companion, ~22 min*
+  - 📚 [Multimodal RAG Jargon Card](./6.%20Basic%20of%20GenAI%20%26%20AI%20Agents/10.%20Multimodal%20%26%20Tabular%20RAG/MultimodalRAG_Jargon_Card.md) — *side-reference dictionary*
 
 > ⚠️ All Module 6 notebooks are >25 MB (lots of embedded screenshots), so GitHub's preview shows *"this file is too big to display"*. Use the **Open in Colab** link to view and run them — Colab renders the full notebook with all images.
+
+---
+
+### 🕹️ Module 7: [Advanced AI Agents](./7.%20Advanced%20AI%20Agents/)
+
+From a single ReAct agent to composable multi-agent workflow patterns, built around a running **Text2SQL** example (MySQL + BIRD benchmark).
+
+#### Notebooks
+
+- 📂 [1. Agents: Foundations & Planning](./7.%20Advanced%20AI%20Agents/1.%20Agents%3A%20Foundations%20%26%20Planning/) — *What an AI agent is (LLM decides the control flow); workflows vs agents; deterministic vs agentic; LangChain's 6-step build framework; the 5 agent components — Persona, LLM/Planner, Prompting Strategy (CoT/ReAct), Tools (function calling), Memory; end-to-end ReAct Text2SQL agent; MCP addendum* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/1.%20Agents%3A%20Foundations%20%26%20Planning/L1_%20Agents_%20Foundations%20%26%20Planning.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 🧪 [Text2SQL live-class notebook](./7.%20Advanced%20AI%20Agents/1.%20Agents%3A%20Foundations%20%26%20Planning/L1-text2sql-liveclass.ipynb) — *live-coded build of the same agent* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/1.%20Agents%3A%20Foundations%20%26%20Planning/L1-text2sql-liveclass.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [Agents: Foundations Reading Brief](./7.%20Advanced%20AI%20Agents/1.%20Agents%3A%20Foundations%20%26%20Planning/Agents_Foundations_Reading_Brief.md) — *pre-read companion, ~24 min*
+  - 📚 [Agents: Foundations Jargon Card](./7.%20Advanced%20AI%20Agents/1.%20Agents%3A%20Foundations%20%26%20Planning/Agents_Foundations_Jargon_Card.md) — *side-reference dictionary*
+- 📂 [2. Advanced Agent Concepts](./7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/) — *Self-improvement (self-reflection / self-correction / Self-Refine, Reflexion); the 5 agentic-workflow patterns from Anthropic's "Building Effective Agents" — Prompt Chaining, Routing, Parallelization (sectioning + voting), Evaluator-Optimizer, Orchestrator-Worker — each applied to Text2SQL* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/Copy%20of%20Advanced%20Agent%20Concepts.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [Advanced Agent Concepts Reading Brief](./7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/Advanced_Agents_Reading_Brief.md) — *pre-read companion, ~25 min*
+  - 📚 [Advanced Agent Concepts Jargon Card](./7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/Advanced_Agents_Jargon_Card.md) — *side-reference dictionary*
+
+> ⚠️ Module 7 notebooks may exceed GitHub's render limit — use the **Open in Colab** links to view and run them.
 
 ---
 
