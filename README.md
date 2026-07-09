@@ -107,7 +107,7 @@ Companion reference at the module root:
 
 ### 🕹️ Module 7: [Advanced AI Agents](./7.%20Advanced%20AI%20Agents/)
 
-From a single ReAct agent to composable multi-agent workflow patterns, built around a running **Text2SQL** example (MySQL + BIRD benchmark).
+From a single ReAct agent to composable multi-agent workflow patterns, the MCP tool-integration standard, model fine-tuning (LoRA/PEFT), and speech (ASR/TTS) — much of it built around a running **Text2SQL** example (MySQL + BIRD benchmark).
 
 #### Notebooks
 
@@ -118,6 +118,19 @@ From a single ReAct agent to composable multi-agent workflow patterns, built aro
 - 📂 [2. Advanced Agent Concepts](./7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/) — *Self-improvement (self-reflection / self-correction / Self-Refine, Reflexion); the 5 agentic-workflow patterns from Anthropic's "Building Effective Agents" — Prompt Chaining, Routing, Parallelization (sectioning + voting), Evaluator-Optimizer, Orchestrator-Worker — each applied to Text2SQL* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/Copy%20of%20Advanced%20Agent%20Concepts.ipynb" target="_blank">▶️ Open in Colab</a>
   - 📖 [Advanced Agent Concepts Reading Brief](./7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/Advanced_Agents_Reading_Brief.md) — *pre-read companion, ~25 min*
   - 📚 [Advanced Agent Concepts Jargon Card](./7.%20Advanced%20AI%20Agents/2.%20Advanced%20Agent%20Concepts/Advanced_Agents_Jargon_Card.md) — *side-reference dictionary*
+- 📂 [3. Agent: Frameworks and Protocols](./7.%20Advanced%20AI%20Agents/3.Agent%3A%20Frameworks%20and%20Protocols/) — *slide deck (PDF) introducing MCP — the concepts are covered hands-on in lecture 4* — 📄 [MCP.pdf](./7.%20Advanced%20AI%20Agents/3.Agent%3A%20Frameworks%20and%20Protocols/MCP.pdf)
+- 📂 [4. MCP Development](./7.%20Advanced%20AI%20Agents/4.%20MCP%20Development/) — *Model Context Protocol: the M×N → M+N integration problem; Host / Client / Server architecture; the 3 server primitives (Tools / Resources / Prompts); stdio vs Streamable HTTP transports; sampling & roots; then a from-scratch Text2SQL MCP server + client build* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/4.%20MCP%20Development/MCP_Theory.ipynb" target="_blank">▶️ Theory in Colab</a>
+  - 🧪 [MCP Server/Client Tutorial notebook](./7.%20Advanced%20AI%20Agents/4.%20MCP%20Development/MCP_Server_Client_Tutorial.ipynb) — *build a Text2SQL MCP server + client* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/4.%20MCP%20Development/MCP_Server_Client_Tutorial.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [MCP Development Reading Brief](./7.%20Advanced%20AI%20Agents/4.%20MCP%20Development/MCP_Reading_Brief.md) — *pre-read companion, ~22 min*
+  - 📚 [MCP Development Jargon Card](./7.%20Advanced%20AI%20Agents/4.%20MCP%20Development/MCP_Jargon_Card.md) — *side-reference dictionary*
+- 📂 [6. Fine Tuning Existing Models](./7.%20Advanced%20AI%20Agents/6.%20Fine%20Tuning%20Existing%20Models/) — *Supervised fine-tuning (SFT) of TinyLlama with **LoRA/PEFT**: chat templates, response-only loss masking (the -100 trick), LoRA config (rank/alpha/target modules), training the adapter, base-vs-fine-tuned comparison; plus a numpy toy showing `W_base + ΔW` flipping a prediction* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/6.%20Fine%20Tuning%20Existing%20Models/fine_tuning_llm_july_04_2026.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 🧪 [LoRA intuition case study](./7.%20Advanced%20AI%20Agents/6.%20Fine%20Tuning%20Existing%20Models/dummy_case_study_july_04_2026.ipynb) — *numpy ΔW walkthrough* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/6.%20Fine%20Tuning%20Existing%20Models/dummy_case_study_july_04_2026.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [Fine-Tuning Reading Brief](./7.%20Advanced%20AI%20Agents/6.%20Fine%20Tuning%20Existing%20Models/FineTuning_Reading_Brief.md) — *pre-read companion, ~18 min*
+  - 📚 [Fine-Tuning Jargon Card](./7.%20Advanced%20AI%20Agents/6.%20Fine%20Tuning%20Existing%20Models/FineTuning_Jargon_Card.md) — *side-reference dictionary*
+  - *(An earlier, shorter copy of this notebook lives in [5. Fine Tuning Existing Models](./7.%20Advanced%20AI%20Agents/5.%20Fine%20Tuning%20Existing%20Models/); the companions above cover the fuller July-04 version.)*
+- 📂 [7. AI Modalities of Speech](./7.%20Advanced%20AI%20Agents/7.%20%20AI%20modalities%20of%20Speech/) — *How sound becomes model input: waves & sampling (16 kHz), FFT & spectra, pitch/F0 & harmonics, voiced vs unvoiced (RMS/ZCR), quantization (SNR ≈ 6 dB/bit), the log-mel spectrogram front-end; then ASR with Whisper + OpenAI transcription and TTS with VITS + OpenAI, scored by Word Error Rate* — <a href="https://colab.research.google.com/github/gautamkr1876/AIML_ClassNotes/blob/main/7.%20Advanced%20AI%20Agents/7.%20%20AI%20modalities%20of%20Speech/AI_Modalities_Speech.ipynb" target="_blank">▶️ Open in Colab</a>
+  - 📖 [Speech Reading Brief](./7.%20Advanced%20AI%20Agents/7.%20%20AI%20modalities%20of%20Speech/Speech_Reading_Brief.md) — *pre-read companion, ~20 min*
+  - 📚 [Speech Jargon Card](./7.%20Advanced%20AI%20Agents/7.%20%20AI%20modalities%20of%20Speech/Speech_Jargon_Card.md) — *side-reference dictionary*
 
 > ⚠️ Module 7 notebooks may exceed GitHub's render limit — use the **Open in Colab** links to view and run them.
 
