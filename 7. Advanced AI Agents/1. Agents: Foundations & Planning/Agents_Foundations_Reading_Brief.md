@@ -1,180 +1,248 @@
 <a id="top"></a>
-# Agents: Foundations & Planning — Reading Brief
+# AI Agents — Foundations & Planning — Reading Brief
 
-> **Read this ONCE, end to end, before opening the notebooks.** Target time: ~24 minutes. By the time you reach the notebooks, every word in them will already make sense — you'll be confirming what you already know, not learning blind.
+> **Read this ONCE, end to end, before opening the notebook.** Target time: ~22 minutes. By the time you reach the notebook, every word will already make sense — you'll be confirming, not learning blind.
 >
-> **Side reference:** keep [`Agents_Foundations_Jargon_Card.md`](./Agents_Foundations_Jargon_Card.md) open in another tab while reading. When an unknown word appears, look it up there.
-> **The notebooks:** `L1_ Agents_ Foundations & Planning.ipynb` (the main, fully-explained build, ~125 cells) + `L1-text2sql-liveclass.ipynb` (the live-coded version of the same thing, ~58 cells).
-> **Prereqs:** ReAct, CoT, and tools were introduced in Module 6, Lecture 6 (Prompt Engineering: Introduction).
+> **Side reference:** keep [`Agents_Foundations_Jargon_Card.md`](./Agents_Foundations_Jargon_Card.md) open in another tab. When an unknown word appears, look it up there.
+> **The notebook:** `L1_ Agents_ Foundations & Planning (1).ipynb` in this folder.
 
 ---
 
 ## 🎯 30-second TL;DR
 
-A chatbot answers once. An **agent** runs in a *loop* — it reasons, calls tools, looks at the results, and decides what to do next, over and over, until the goal is met. The one sentence that defines the whole lecture (Harrison Chase, LangChain):
+**An AI agent is just an LLM that decides its own control flow.** In a normal program, *you* write "first do X, then Y, then stop." In an agent, the **LLM** decides — at runtime — which tool to call next, in what order, and when to stop. Anchor definition (Harrison Chase, LangChain): *"a system that uses an LLM to decide the control flow of an application."*
 
-> **"An AI agent is a system that uses an LLM to decide the control flow of an application."**
+The notebook proves this by **building a working Text2SQL agent**: you ask a plain-English question and the agent, on its own, discovers the tables, reads the schema, writes SQL, runs it, and answers — looping through five components:
 
-In normal software *you* write the control flow. In an agent the *LLM* decides it at runtime. The lecture builds intuition (what agents are, when to use them, deterministic vs agentic) and then constructs a **Text2SQL agent** — turn an English question into SQL, run it, summarize the answer — out of **five reusable components**:
+**Persona → LLM/Planner → Prompting Strategy (CoT/ReAct) → Tools (function calling) → Memory.**
 
-> **Persona → LLM/Planner → Prompting Strategy → Tools → Memory** → wired together by a **ReAct agent loop**.
-
----
-
-## 🗺️ Agenda — what the notebooks teach, in order
-
-1. **What is an AI agent?** — LLM as reasoning engine; the loop; industry definitions.
-2. **Real-world use cases** — OpenAI contracts, Salesforce Horizon, Uber Finch, LinkedIn Hiring Assistant, Anthropic multi-agent research.
-3. **When (and when not) to use agents** — simplicity first; workflows vs agents.
-4. **Deterministic vs agentic workflows** — developer-controlled path vs model-controlled path.
-5. **How to build an agent** — LangChain's 6-step framework.
-6. **Database setup** — MySQL + BIRD benchmark (the agent's playground).
-7. **Component 1: Persona** — the system prompt that defines identity + boundaries.
-8. **Component 2: LLM as Planner** — the brain that plans which tools to call.
-9. **Component 3: Prompting Strategy** — CoT vs ReAct in an agent.
-10. **Component 4: Tools** — function calling; the three SQL tools; schemas. (+ MCP addendum.)
-11. **Component 5: Memory** — short-term vs long-term.
-12. **End-to-end** — the ReAct agent loop ties all five together.
+The biggest mental shift: **the LLM never runs the SQL itself.** It outputs *structured JSON* ("call `execute_sql` with this query"); *your code* runs it and feeds the result back. That request-execute-observe cycle, repeated, is the whole agent.
 
 ---
 
-## 🧠 The big idea — the LLM controls the control flow
+## 🗺️ Agenda — what the notebook teaches, in order
 
-Every program has **control flow**: the order steps run in. For 70 years, a *human* wrote that order — `if this, do that`. An agent flips it: the **LLM decides, at runtime, what to do next**, based on the goal and what it has observed so far.
+1. **What an AI agent is** — LLM-decides-control-flow; three industry definitions (LangChain, IBM, Google); five core characteristics.
+2. **Real-world use cases** — OpenAI contracts, Salesforce Horizon (Text2SQL in Slack), Uber Finch, LinkedIn Hiring Assistant, Anthropic multi-agent research.
+3. **When (and when NOT) to use agents** — simplicity first; workflow-vs-agent tradeoff.
+4. **Deterministic vs agentic workflows** — the flowchart that is NOT an agent; developer-path vs model-path.
+5. **How to build an agent** — LangChain's six-step framework (examples → SOP → MVP → real data → test → deploy).
+6. **Database setup** — MySQL on Colab, load the BIRD benchmark, SQLAlchemy engine.
+7. **Component 1 — Persona** — system prompt as identity; built as a Python dict.
+8. **Component 2 — LLM as Planner** — four sources of agent knowledge; LLM generating a plan.
+9. **Component 3 — Prompting Strategy** — CoT vs ReAct; why ReAct dominates.
+10. **Component 4 — Tools** — function calling; the six-step cycle; three tools + JSON schemas; demo call. Addendum: MCP.
+11. **Component 5 — Memory** — short-term vs long-term; the `messages` list.
+12. **Putting it together** — the `run_agent()` loop on two real questions.
 
-**The transferable analogy: a GPS with live traffic vs. printed turn-by-turn directions.** Printed directions (a **deterministic workflow**) are fixed the moment they're printed — same route every time, even into a closed road. A GPS with live traffic (an **agent**) re-decides at each junction based on what it observes, reroutes when blocked, and only stops when you arrive. The printed directions aren't "dumber" — for a known, unchanging route they're faster and more predictable. That's the lecture's core judgment call: **use a workflow (fixed path) for well-defined tasks; use an agent (model-decided path) only when the task is open-ended and you can't predict the steps in advance.** Agents buy flexibility at the cost of latency, money, and more ways to go wrong.
+---
 
-The Text2SQL agent makes this concrete. You ask "What's the average salary in Engineering?" Nobody hardcoded "first list tables, then read the `employees` schema, then write this exact SQL." The LLM *figures that out* — calling `list_tables`, then `get_table_schema`, then `execute_sql` — adapting if a query errors. That runtime decision-making is what makes it an agent.
+## 🧠 The big idea — who holds the steering wheel
+
+**One analogy: printed directions vs a taxi driver.**
+
+- A **deterministic workflow** is a **printed set of directions**: "at the 2nd light turn left, then go 400m, then turn right." It works only for the exact trip it was written for; hit a road closure and it's stuck. This is traditional software, rule engines, ETL pipelines, the `Start → Decision → Process → End` flowchart. **The developer decided the path in advance.**
+
+- An **agent** is a **taxi driver**. You give a *destination* ("average salary in Engineering"), not turn-by-turn directions. The driver figures out the route as they go, reroutes around closures, checks a map when unsure, and knows when they've arrived. **The LLM decides the path at runtime.**
+
+Everything hangs off this distinction. The five components are just the driver's equipment: **persona** = training and rulebook, **LLM** = brain, **prompting strategy (ReAct)** = think-then-do habit, **tools** = hands (map, meter, GPS), **memory** = short-term recall of "I already checked that street."
+
+The honest catch: a driver costs more than a printed map (latency, cost, more ways to go wrong). So **use the map when it works** — hire the driver only for open-ended trips you can't write directions for.
 
 ---
 
 ## 📖 Core concept primers
 
-The five agent components are the heart of the lecture. Each primer has a **mental model**, plain-English meaning, the notebook's concrete code, and why it matters.
+Six primers cover the heart of the notebook: mental model + meaning + example + why it matters.
 
-### 1. Persona (Component 1) — who the agent is
+### 1. Agent vs Workflow (the control-flow distinction)
 
-> **🪜 Mental model:** an employee's job description pinned above their desk — role, rules, and "do not do" list, read before every task.
+> **🪜 Mental model:** printed directions (workflow) vs taxi driver (agent) — who decides the route, you or the model?
 
-The **persona** is the agent's identity, delivered as the **system prompt** sent first on every turn. It sets **role** (Senior SQL Developer), **tone** (precise, no filler), **boundaries** (CAN: list tables, read schemas, run SELECTs; CANNOT: DELETE/DROP/UPDATE/INSERT, guess names, answer non-DB questions), and **output format** (show the SQL, the result, a plain-English summary). The notebook stores it as a dict and `build_system_prompt()` renders it to a string. **Why it matters here:** it's the simplest component (just a string) but the highest-leverage — telling the agent what it *cannot* do (no destructive SQL, no guessing columns) is as important as what it can. Set `temperature=0.0` for precision.
+**What it is.** A **workflow** runs LLMs and tools along a **predefined code path** — the developer wired the branches. An **agent** lets the **LLM dynamically decide** what to do next at each step. The litmus test: *deterministic = developer controls the path; agentic = model controls the path.*
 
-### 2. LLM as Planner (Component 2) — the brain
+**Tiny example.** The `Start → Decision → Process → End` flowchart is a workflow: every branch is fixed. The Text2SQL agent is agentic: it decides whether to list tables, read a schema, or run a query *based on what it has learned*.
 
-> **🪜 Mental model:** a senior analyst who sketches the steps before touching the keyboard — and crosses one out if it stops making sense.
+**Why it matters in this notebook.** An agent adds three things a deterministic system lacks: **autonomous planning** (decompose a new goal), **dynamic tool selection** (choose tools at runtime), and an **iterative reasoning loop** (observe → reflect → adapt). Lack all three and it's not an agent. The practical rule: **start with the simplest solution** (often one good LLM call), go agentic only when the extra latency/cost is justified.
 
-The LLM is the agent's reasoning engine. Given a question + persona, it **plans dynamically**: which tools, in what order, how to read the results — revising as it goes. The notebook's `generate_plan()` asks the LLM to output a numbered, tool-aware plan ("1. list_tables, 2. get_schema(employees), 3. execute_sql(...)"). It also frames the **four sources of agent knowledge**: foundational training + fine-tuning (both *static*, frozen) vs external tools + memory (both *dynamic*, live). **Why it matters here:** the plan is what separates an agent from a fixed pipeline — a pipeline always runs the same steps; the planner decides them per question, and an *ambiguous* question (e.g., "show me everything") exposes whether the persona's boundaries hold.
+### 2. Persona (Component 1)
 
-### 3. Prompting Strategy (Component 3) — CoT vs ReAct
+> **🪜 Mental model:** the agent's job description handed over on day one — role, rules, and how to format its answers — before it hears a single question.
 
-> **🪜 Mental model:** CoT is thinking before you speak; ReAct is think-a-bit, do-a-bit, look, repeat.
+**What it is.** A **persona** tells the LLM *who it is* before any user query — in practice it **is the system prompt**, the first message in every conversation. Without it, an LLM answers a database question with a Wikipedia essay; with it, it stays a focused SQL specialist.
 
-The prompting strategy is *how* each LLM call is assembled (system prompt + query + prior tool results + memory). Two paradigms: **Chain-of-Thought** (reason step-by-step, no tools) and **ReAct** (interleave reasoning with tool calls in a loop). **Why it matters here:** for Text2SQL, **ReAct is the dominant strategy** — the agent *must* touch the database at each step (list → schema → query → execute) — while CoT operates *inside* each ReAct cycle (the model reasons "I need a CASE WHEN for this ratio" before acting). The strategy isn't one prompt; it's the architecture of every call.
+**Tiny example.** Built as a Python dictionary with four pillars:
+- **Role:** "Senior SQL Developer and Data Analyst"
+- **Instructions:** the workflow — list tables → get schema → write SELECT → execute
+- **Rules (boundaries):** only confirmed table/column names; never guess; **never DELETE/DROP/UPDATE/INSERT**; state assumptions if unclear; retry on failure
+- **Output format:** always show the SQL, the result, and a plain-English summary
 
-### 4. Tools (Component 4) — giving the agent hands
+`build_system_prompt(persona)` flattens that dict into the string sent to the model.
 
-> **🪜 Mental model:** a contract between two worlds — a reliable, deterministic function that an unpredictable, creative agent decides *when* to call.
+**Why it matters in this notebook.** The simplest component but arguably the most impactful. Note `temperature=0.0` — SQL needs precision, not creativity. And telling the agent what it **cannot** do (no destructive SQL, no guessing) is a guardrail baked into the prompt.
 
-Tools let the agent **act** beyond generating text. The mechanism is **function calling**: given tool **schemas** (name, description, parameters as JSON), the LLM outputs a **JSON object** naming a function and its arguments — it does **not** run the function; *your app* does, then feeds the result back. The notebook builds three tools — `list_tables`, `get_table_schema`, `execute_sql` — registers them in OpenAI's `tools=[...]` format with `tool_choice="auto"`, and maps names → real functions in a `tool_functions` dict. **Why it matters here:** three critical facts the notebook hammers: (a) the **description is the interface** — write it for the LLM, not a human; (b) the LLM **never executes** the tool — it just requests it; (c) **not all LLMs can call tools** — only ones fine-tuned for it (gpt-4o-mini, Gemini 2.0, Claude). The **MCP** addendum generalizes this: a standard that turns N×M custom integrations into N+M.
+### 3. LLM as Planner + the four sources of knowledge (Component 2)
 
-### 5. Memory (Component 5) — remembering across steps
+> **🪜 Mental model:** a specialist consultant — trained broadly, specialised by experience, but still looks things up live and remembers what they just found.
 
-> **🪜 Mental model:** a whiteboard with finite space — short-term scribbles accumulate during the meeting; anything you'll need next week goes in a filing cabinet (long-term).
+**What it is.** The LLM is the agent's **brain**: given a question, it produces a **plan** ("list tables → get schema of `customers` → write query") and revises it as results come in. In a normal program *you* write the plan; in an agent the **LLM writes it**.
 
-**Short-term memory** is the `messages` list that grows through the loop — system prompt, user question, each tool call, each tool result — so the LLM remembers it already discovered the `employees` table and doesn't re-list. **Long-term memory** persists across sessions (preferences, cached schemas) outside the finite **context window**; deciding what to keep, store, and retrieve is **context engineering**. **Why it matters here:** memory is what carries context across ReAct iterations — without it every loop step starts from zero. (The lecture flags that memory is covered in depth in the Advanced Agents notebook.)
+**The four sources of agent knowledge** (the notebook's table):
 
-### 6. Putting it together — the ReAct agent loop
+| Source | Static or Dynamic | Text2SQL example |
+|---|---|---|
+| **Foundational training** | Static (frozen) | Knows SQL syntax, JOINs, aggregation |
+| **Fine-tuning** | Static (frozen) | Better accuracy on text-to-SQL benchmarks (BIRD/Spider) |
+| **External tools** | **Dynamic (live)** | Discovers actual table/column names at runtime |
+| **Memory** | **Dynamic (session)** | Remembers `customers` has a `Currency` column from an earlier step |
 
-> **🪜 Mental model:** the conveyor belt that connects all five components — it keeps cycling the LLM until it stops asking for tools.
+**Why it matters in this notebook.** Foundational training and fine-tuning are **frozen** — the model can't know your specific tables from them. The agent's real power is the **dynamic** half: tools give live knowledge, memory accumulates context. The notebook demos this by asking the LLM to plan three questions of rising difficulty (count → EUR/CZK ratio → ambiguous "show me everything," which tests the persona's boundaries).
 
-`run_agent()` wires everything: seed `messages` with the persona (system) + user question (**memory**); loop — call the LLM with the **tool schemas** (**planning + strategy**); if the reply has `tool_calls`, execute each via `tool_functions` (**tools**), append results to `messages`, and loop; when the reply is plain text, that's the final answer. **Why it matters here:** this ~20-line loop *is* the agent — it's the runtime realization of ReAct and the function-calling cycle, and it's exactly the architecture every production agent (Horizon, Finch) elaborates on.
+### 4. Prompting Strategy — Chain-of-Thought vs ReAct (Component 3)
+
+> **🪜 Mental model:** CoT = "show your working" on paper; ReAct = "show your working, but you're also allowed to get up and check a reference between steps."
+
+**What it is.** A **prompting strategy** is *how* you assemble each message to the LLM (system prompt + query + prior tool outputs + examples). Two matter for agents: **Chain-of-Thought (CoT)** — reason step-by-step internally before answering, **no tools**; and **ReAct (Reasoning + Acting)** — interleave thinking and tool calls in a loop (*think → act → observe → think again*).
+
+**Tiny example (the notebook's comparison):**
+
+| Aspect | Chain-of-Thought | ReAct |
+|---|---|---|
+| What it does | Reasons through steps, then answers | Alternates reasoning and tool execution |
+| Tool usage | None — pure reasoning | Core — tools called mid-thought |
+| In our agent | Plans the SQL logic ("I need a CASE WHEN for a ratio") | Drives the full loop: list → schema → write → execute |
+
+**Why it matters in this notebook.** **ReAct dominates** here because the agent *must* touch the database at each step; CoT operates *inside* each ReAct cycle. Key takeaway: the prompting strategy isn't one prompt, it's **the architecture of every LLM call**.
+
+### 5. Tools & Function Calling (Component 4)
+
+> **🪜 Mental model:** the LLM is a manager who writes a work order ("run this SQL"); it never does the work — an employee (your code) does, then reports back.
+
+**What it is.** **Tools** are deterministic functions that let the agent *act* (query a DB, hit an API, run code); **function calling** is the mechanism. The crucial subtlety, repeated three times: **the LLM does NOT execute the function.** It reads the tool schemas, decides one fits, and outputs **structured JSON** (`{"name": "execute_sql", "arguments": {"query": "..."}}`); your app runs the real function and returns the result.
+
+**The six-step cycle:** (1) app sends the prompt **plus tool definitions**; (2) LLM decides: answer directly or use a tool; (3) if a tool, LLM emits **JSON arguments** (not text); (4) app **executes the actual function**; (5) result goes back to the LLM; (6) LLM produces a final answer (or loops again).
+
+**Tiny example (the three tools):** `list_tables()` → `get_table_schema(table_name)` → `execute_sql(query)`. Each is registered with a JSON schema whose `description` the LLM reads to decide when to call it. A `tool_functions` dict maps the JSON name back to the real Python function.
+
+**Why it matters in this notebook.** Two hard rules: (a) **descriptions are the interface** — write them for an LLM, not a human ("Run a SQL SELECT query and return results" beats "does stuff with data"); (b) **not all LLMs can call tools** — only models fine-tuned for it (GPT-4o, Gemini 2.0, Claude); a base model ignores them. The **MCP addendum** previews standardising this (M×N → M+N).
+
+### 6. Memory + the Orchestration Loop (Component 5 + finale)
+
+> **🪜 Mental model:** the context window is a whiteboard — finite; once it fills, old notes get wiped. Memory decides what to keep on the board and what to file away.
+
+**What it is.** **Memory** lets the agent carry context across steps instead of restarting. **Short-term** = the conversation so far (system prompt, user turns, tool calls, results) — lives **inside** the context window, i.e., the **`messages` list that grows each cycle**. **Long-term** = persists **across sessions** (preferences, cached schemas), stored **outside** the window and pulled in when relevant.
+
+**Tiny example (the without/with diagram):** *Without* memory, question 2 ("now count CZK customers") re-runs `list_tables` and `get_schema` redundantly. *With* memory, it skips straight to `execute_sql`.
+
+**Why it matters in this notebook.** Memory turns a stateless function-caller into a coherent assistant. The **orchestration loop** (`run_agent()`) makes it concrete: seed `messages` with system prompt + question, then loop — call the LLM → if it requests tools, run them and **append results to `messages`** → repeat → **stop when the LLM answers with no tool call.** That growing list *is* the short-term memory. (Deep memory comes in Advanced Agents.)
 
 ---
 
-## 🔥 The five components — at a glance
+## 🔥 The headline takeaway — at a glance
 
-| # | Component | One-liner | In the Text2SQL agent |
-|---|---|---|---|
-| 1 | **Persona** | Identity via system prompt | "Senior SQL Developer," SELECT-only, no guessing |
-| 2 | **LLM / Planner** | The reasoning brain | `generate_plan()`, gpt-4o-mini @ temp 0 |
-| 3 | **Prompting Strategy** | How each call is assembled | ReAct loop, CoT inside each cycle |
-| 4 | **Tools** | Hands to act on the world | `list_tables`, `get_table_schema`, `execute_sql` |
-| 5 | **Memory** | Context across steps | `messages` list (short-term) |
-| → | **Agent loop** | Ties it all together | `run_agent()` = ReAct in code |
+The notebook's payoff isn't an accuracy number — it's a **working agent** and a set of design rules. Anatomy of what gets built:
+
+| Component | What it is here | Remember |
+|---|---|---|
+| **Persona** (C1) | System prompt: Senior SQL Developer, `temperature=0.0`, no destructive SQL | Persona IS the system prompt; constraints matter as much as capabilities |
+| **LLM / Planner** (C2) | `gpt-4o-mini` generating a step-by-step plan | Only 2 of 4 knowledge sources are dynamic (tools + memory) |
+| **Prompting** (C3) | ReAct loop, CoT inside each cycle | ReAct dominates — the agent must hit the DB every step |
+| **Tools** (C4) | `list_tables` → `get_table_schema` → `execute_sql` + JSON schemas | LLM emits JSON; **your code** runs the function |
+| **Memory** (C5) | The growing `messages` list | Short-term = in the window; long-term = outside it |
+| **Loop** (finale) | `run_agent()` while-loop | Stop = LLM replies with **no tool call** |
+
+**Real-world proof points cited (real numbers):**
+- **Anthropic multi-agent research** beat single-agent Claude Opus by **>90%** on internal benchmarks.
+- **LinkedIn Hiring Assistant** saved recruiters **~4 hrs/role**, cut profile reviews **62%**.
+- **OpenAI contract agent** scaled from hundreds to **1,000+ contracts/month** without proportional headcount.
+- **MCP** turns **10 models × 10 sources = 100** integrations into just **20** (N+M).
+
+**The two live demo questions** the finished agent answers end-to-end: *"average salary in the Engineering department?"* and *"how many employees are in each city?"*
 
 ---
 
-## 🧮 The one "formula" — the function-calling cycle
+## 🧮 Formulas to memorise
 
-Not math, but the load-bearing mechanism. Memorize the 6 steps:
+**This lecture is almost entirely conceptual — there is only one "formula," and it's about scaling integrations.**
+
+### MCP integration count
 
 ```
-1. app → LLM:   prompt + tool definitions
-2. LLM:         decide — answer directly, or call a tool?
-3. LLM → app:   structured JSON {name, arguments}   (NOT a text answer)
-4. app:         execute the real Python function
-5. app → LLM:   send the function's result back
-6. LLM → app:   final natural-language answer   (or loop to step 2 for another tool)
+Traditional:  integrations = M × N
+With MCP:      integrations = M + N
 ```
 
-**Word-by-word translation:** "The LLM is a decision-maker that *requests* actions in JSON; your application is the hands that *perform* them and report back; repeat until the LLM stops requesting tools." **Worked reading:** ask "How many customers pay in EUR?" → step 3 returns `list_tables()` (no answer yet) → app runs it, returns table names → LLM requests `get_table_schema("customers")` → … → finally returns text with the SQL + count. That repetition of steps 2–5 *is* the ReAct loop.
+**In words:** without MCP, custom connectors = **number of models (M) × number of data sources (N)** — every model needs its own connector to every source. With MCP it drops to **models + sources**, because each side integrates with the protocol just **once**.
+
+**Worked example:** 10 models × 10 sources → traditional = `100` integrations; with MCP = `20`. The gap widens fast as the numbers grow — the whole selling point of a standard protocol.
+
+Everything else is a *pattern to internalise*: the **ReAct loop** (think → act → observe → repeat), the **function-calling cycle** (see primer 5), and the **stop condition** (halt when the LLM responds with **no tool call**).
 
 ---
 
-## 🗺️ Notebook reading map
-
-**Main notebook** (`L1_ Agents_ Foundations & Planning.ipynb`):
+## 🗺️ Notebook reading map — where to spend your attention
 
 | Cells | What it teaches | How to read |
 |---|---|---|
-| 0–2 | Setup, API key (`getpass`) | **Skim.** |
-| 4–15 | What is an agent; industry definitions; 5 real-world case studies | **Focus.** The "why." |
-| 16–29 | When to use agents; deterministic vs agentic workflows | **Focus.** The core judgment call. |
-| 30–33 | LangChain's 6-step build framework | **Read.** |
-| 34–59 | MySQL + BIRD database setup | **Skim/run.** Plumbing. |
-| 60–70 | **Component 1: Persona** (dict → system prompt → test) | **Focus.** |
-| 71–81 | **Component 2: LLM as Planner**; 4 knowledge sources | **Focus.** |
-| 82–84 | **Component 3: Prompting Strategy** (CoT vs ReAct) | **Focus.** |
-| 85–111 | **Component 4: Tools** (3 tools, schemas, function-calling demo) + MCP addendum | **Focus + slow down.** |
-| 112–116 | **Component 5: Memory** (short vs long term) | **Read.** |
-| 117–123 | **End-to-end** ReAct agent loop (`run_agent`) | **Focus.** The payoff. |
+| **0–4** | Colab badge, title, API key setup | **Skim** — 1 min. (A real key is hardcoded — an anti-pattern; use `getpass`.) |
+| **5–16** | What an agent is; 3 definitions; 5 real use cases | **Read** — ~6 min. Use cases make "agent" concrete. |
+| **17–30** | When (not) to use agents; deterministic vs agentic workflows | **FOCUS** — ~6 min. The conceptual core (developer-path vs model-path). |
+| **31–34** | LangChain's six-step build framework | **Read** — ~3 min. "Prove the reasoning first." |
+| **35–60** | MySQL install, load BIRD, SQLAlchemy engine | **Skim/reference** — ~4 min. Setup plumbing; get the *why*, not every command. |
+| **61–71** | C1 — Persona (dict → system prompt → test) | **FOCUS** — ~5 min. Read the persona dict carefully. |
+| **72–82** | C2 — LLM as Planner; four knowledge sources; plan generation | **Read** — ~5 min. The knowledge-sources table is exam-worthy. |
+| **83–85** | C3 — Prompting Strategy (CoT vs ReAct) | **FOCUS** — ~4 min. Short but load-bearing. |
+| **86–112** | C4 — Tools & function calling; 3 tools + schemas; demo; MCP addendum | **FOCUS — the heart** — ~10 min. The 6-step cycle and "LLM never executes." |
+| **113–116** | C5 — Memory (short vs long, without/with diagram) | **Read** — ~4 min. Memory = the `messages` list. |
+| **118–124** | Putting it together — `run_agent()` loop + 2 live demos | **FOCUS — the payoff** — ~6 min. Watch the loop and stop condition. |
 
-**Live-class notebook** (`L1-text2sql-liveclass.ipynb`): the same build, live-coded and terser (setup → persona → planner → 3 tools → agent loop, ending with `run_agent("Who stole my PS5?")` to test out-of-scope handling, and an improved `run_agent` with `max_steps` + trace). **Read it second**, as a fast recap of the main notebook.
+**Notebook read time:** ~55 min. Plus this brief's ~22 min = **~75 min** total.
 
 ---
 
 ## ✅ Walk-away checklist
 
-After the notebooks, you should be able to say, in your own words:
+After reading the notebook, you should be able to say in your own words:
 
-- [ ] Why "the LLM decides the control flow" is the defining property of an agent.
-- [ ] When to choose a deterministic workflow vs an agent (and the cost of agents).
-- [ ] The five components and what each contributes.
-- [ ] Why the **persona's boundaries** matter as much as its capabilities.
-- [ ] How **function calling** works — and that the LLM never executes the tool itself.
-- [ ] Why only certain LLMs can use tools.
-- [ ] How the **ReAct agent loop** ties all five components into a working agent.
+- [ ] **What separates an agent from a workflow** — the LLM (not the developer) decides control flow at runtime; agents add autonomous planning + dynamic tool selection + an iterative reasoning loop.
+- [ ] **When NOT to use an agent** — when a single LLM call or fixed workflow works; agents cost more latency, money, error surface.
+- [ ] **What the five components do** — Persona (system prompt), LLM (planner/brain), Prompting Strategy (CoT/ReAct), Tools (function calling), Memory (context across steps).
+- [ ] **How function calling works** — the LLM emits JSON naming a tool + args; **your code executes it**; only tool-fine-tuned models can do this.
+- [ ] **CoT vs ReAct** — CoT reasons then answers (no tools); ReAct interleaves reasoning with tool calls in a loop.
+- [ ] **Short-term vs long-term memory** — short-term = context window (`messages` list); long-term = outside it (DB/store).
+- [ ] **How the loop terminates** — it stops when the LLM returns a response with **no tool call**.
+
+If any feel shaky after the notebook, come back to the relevant primer above.
 
 ---
 
 ## 🎯 5-question self-check
 
-Answer these using only this Brief. Answers are hidden below.
+Answer in your head, then check below. **No peeking.**
 
-1. Complete the definition: "An AI agent is a system that uses an LLM to decide the ______ of an application."
-2. You're automating a fixed, well-understood nightly report with the same steps every time. Workflow or agent — and why?
-3. In the function-calling cycle, the LLM outputs `{"name": "execute_sql", "arguments": {...}}`. What happens next, and who runs the SQL?
-4. The Text2SQL persona says the agent "must NEVER run DELETE, DROP, UPDATE, or INSERT." Which component is this, and why is stating it important?
-5. During one `run_agent` call the LLM calls `list_tables`, then `get_table_schema`, then `execute_sql`, then returns text. Which prompting strategy is this, and what makes the loop finally stop?
+1. **Conceptual:** In one sentence, what is the defining difference between a deterministic workflow and an agentic workflow?
+2. **Conceptual:** Why does the notebook say the persona is "just a string" yet "arguably the most impactful" component?
+3. **Mechanism:** When the LLM "calls a tool," what does it actually produce, and who runs the real function?
+4. **Mechanism/formula:** You have 6 models and 4 data sources. How many integrations without MCP, and how many with MCP?
+5. **Synthesis:** In the `run_agent()` loop, what tells the agent it's finished and should stop looping?
+
+---
 
 <details>
-<summary>Answers</summary>
+<summary><b>Click to reveal answers</b></summary>
 
-1. **Control flow.** (The LLM decides the order of steps at runtime, rather than the developer hardcoding it.)
-2. A **workflow** (deterministic). The task is well-defined with predictable steps, so a fixed code path is more predictable, faster, and cheaper. Agents are for *open-ended* tasks where the number/order of steps can't be predicted — using one here just adds latency, cost, and error surface.
-3. Your **application** receives the JSON, **executes the real `execute_sql` Python function** itself, then sends the result back to the LLM for the next decision. The **LLM never runs the SQL** — it only *requests* the call.
-4. **Persona (Component 1)**, delivered via the system prompt. Stating boundaries matters because what the agent *cannot* do (destructive SQL, guessing columns) is as important as what it can — it's the guardrail that keeps an autonomous, non-deterministic system safe.
-5. **ReAct (Reasoning + Acting)** — the agent interleaves reasoning with tool calls. The loop stops when the LLM's reply contains **no `tool_calls`** (i.e., it returns plain text), which the orchestrator treats as the final answer.
+1. **In a deterministic workflow the developer hardcodes the path in advance; in an agentic workflow the LLM decides it dynamically at runtime.** (Taxi-driver vs printed-directions — plus the agent adds autonomous planning, runtime tool selection, and an observe-reflect-adapt loop.)
+
+2. **Because the persona IS the system prompt** — a plain string sent first in every conversation. Impactful because it sets role, boundaries (no DELETE/DROP, no guessing names), workflow, and output format, turning a generic chatbot into a focused SQL specialist. `temperature=0.0` belongs here too.
+
+3. **A structured JSON object** naming the function and arguments (`{"name": "execute_sql", "arguments": {"query": "..."}}`) — it does **not** run anything. **Your application** executes the real Python function (via the `tool_functions` map) and sends the result back. Only tool-fine-tuned models can do this.
+
+4. **Without MCP: `6 × 4 = 24` integrations. With MCP: `6 + 4 = 10` integrations.** MCP collapses M×N custom connectors into M+N because each side integrates with the protocol once.
+
+5. **The loop stops when the LLM returns a response with no `tool_calls`** — i.e., it's satisfied and produces a final natural-language answer instead of requesting another tool. Until then, each tool result is appended to the `messages` list (short-term memory) and the loop repeats.
 
 </details>
 
-[🔝 Back to top](#top)
+---
+
+[🔝 Back to top](#top) · [→ Jargon Card](./Agents_Foundations_Jargon_Card.md)
