@@ -1,161 +1,223 @@
 <a id="top"></a>
 # Advanced Agent Concepts — Reading Brief
 
-> **Read this ONCE, end to end, before opening the notebook.** Target time: ~25 minutes. By the time you reach the notebook, every word in it will already make sense — you'll be confirming what you already know, not learning blind.
+> **Read this ONCE, end to end, before opening the notebook.** Target time: ~22 minutes. By the time you reach the notebook, every term and every pattern will already make sense — you'll be confirming what you know, not learning blind.
 >
-> **Side reference:** keep [`Advanced_Agents_Jargon_Card.md`](./Advanced_Agents_Jargon_Card.md) open in another tab while reading. When an unknown word appears, look it up there.
-> **The notebook:** `Copy of Advanced Agent Concepts.ipynb` (~179 cells — large, which is why this pre-read exists).
-> **Prereq:** the 5 agent components + ReAct loop from `../1. Agents: Foundations & Planning/`.
+> **Side reference:** keep [`Advanced_Agents_Jargon_Card.md`](./Advanced_Agents_Jargon_Card.md) open in another tab while reading the notebook. When an unknown word appears, look it up there.
+> **The notebook:** `L2_ Advanced Agent Concepts.ipynb` in this folder — a big one (~19.6k words). This brief is your map.
 
 ---
 
 ## 🎯 30-second TL;DR
 
-Lecture 1 built *one* agent (a ReAct loop). This lecture asks: **how do you compose LLM calls into reliable systems?** The answer is the **five canonical agentic-workflow patterns** from Anthropic's *Building Effective Agents*, each demonstrated generically and then applied to the running **Text2SQL** task:
+A single LLM call gets a hard SQL query right maybe **70% of the time**. This notebook shows how to push that toward **~95%** — not by training a bigger model, but by **wrapping the same model in smart control flow** at inference time. The cost is 2–4× more LLM calls per query; the payoff is reliability.
 
-> **1. Prompt Chaining · 2. Routing · 3. Parallelization · 4. Evaluator-Optimizer · 5. Orchestrator-Worker**
+It does this in two acts, both built around a **Text2SQL agent** (turning "average salary per department" into runnable SQL):
 
-Plus a **self-improvement layer**: an agent that critiques and rewrites its own SQL at inference time (Self-Refine / Reflexion). The throughline: **decompose the work and add feedback.** A single monolithic prompt asked to understand + recall schema + write SQL + verify all at once fails in predictable ways; splitting those concerns across structured stages — with validation between them — is what makes agentic systems reliable.
+1. **Self-improvement** — the agent critiques and rewrites its *own* output using natural-language feedback and a memory of past mistakes (Self-Refine + Reflexion). No weight updates.
+2. **The 5 agentic-workflow patterns** from Anthropic's *Building Effective Agents* — **Prompt Chaining, Routing, Parallelization, Evaluator-Optimizer, Orchestrator-Worker** — each explained generically, then applied to Text2SQL.
+
+The one sentence to remember: **you buy reliability with extra LLM calls arranged in the right control structure.**
 
 ---
 
 ## 🗺️ Agenda — what the notebook teaches, in order
 
-1. **Foundation rebuild** — re-create Lecture 1's Text2SQL agent (persona, tools, planner, ReAct loop) as a clean base.
-2. **Self-improvement layer** — self-reflection, self-correction, iterative refinement (Self-Refine, Reflexion); a `SelfImprovingSQLAgent` that critiques → executes → refines.
-3. **Intro to agentic workflows** — the complexity spectrum (single-shot → static chains → workflows → agents); 5 recurring components.
-4. **Workflow 1: Prompt Chaining** — fixed sequence of single-job calls; marketing-copy and data-extraction examples; 5-stage Text2SQL chain.
-5. **Workflow 2: Routing** — classify then dispatch; support-ticket routing.
-6. **Workflow 3: Parallelization** — sectioning + voting; safety guardrail, multi-reviewer moderation, parallel SQL critics.
-7. **Workflow 4: Evaluator-Optimizer** — generator/critic feedback loop; policy drafting; Text2SQL with dual (LLM + execution) validation.
-8. **Workflow 5: Orchestrator-Worker** — runtime decomposition + worker synthesis; report generation; complex Text2SQL queries.
+1. **Foundation setup** — MySQL + BIRD benchmark, an `employees` demo table, and the agent's building blocks: **persona**, **tools** (`list_tables`, `get_table_schema`, `execute_sql`), **planner**, **ReAct** loop.
+2. **Self-improvement — concepts** — self-reflection vs self-correction vs iterative refinement vs memory-based improvement vs feedback-conditioned prompting.
+3. **Self-improvement — code** — a critique function (JSON verdict), a refinement function, execution-aware feedback, a self-improving agent with an **error memory**.
+4. **Failure-case demos** — force a schema hallucination (`dept` vs `department`) and watch the correction loop fix it.
+5. **Intro to agentic workflows** — the spectrum from single-shot → static chains → agentic loops; workflows vs agents; the 5 recurring components.
+6. **Workflow 1 — Prompt Chaining** — marketing-copy chain, data-extraction chain, then Text2SQL as a 4-stage chain (intent → schema grounding → generation → verification).
+7. **Workflow 2 — Routing** — customer-support ticket routing; then routing Text2SQL by complexity.
+8. **Workflow 3 — Parallelization** — sectioning (safety guardrail) + voting (multi-critic moderation); then parallel SQL critics + safety screener.
+9. **Workflow 4 — Evaluator-Optimizer** — compliance-document loop; then a generate→evaluate→execute→repair Text2SQL loop.
+10. **Workflow 5 — Orchestrator-Worker** — multi-section report generation; then an orchestrator that decomposes a query and dispatches specialized SQL workers.
+11. **Cross-pattern comparisons** — how each pattern differs from the others (this is the interview gold).
 
 ---
 
-## 🧠 The big idea — decompose, then add feedback
+## 🧠 The big idea — control flow beats brute force
 
-A single LLM call asked to do everything at once is like one person trying to write, fact-check, translate, and proofread a document in a single pass — they drop something. Agentic workflows are **org charts for LLM calls**: split the job so each call has one responsibility, and add checkpoints where work is verified before it flows on.
+**Analogy — the newsroom.** A single LLM call is a lone freelancer asked to research, write, fact-check, and publish in one draft — roughly-right-most-of-the-time. A **newsroom** gets the same job right far more often, not because any journalist is smarter, but because of *structure*: an editor sends easy stories one way and investigations another (**routing**), several fact-checkers vet claims in parallel (**parallelization/voting**), an editor and writer trade drafts until it passes (**evaluator-optimizer**), and a managing editor breaks a big investigation into beats and assigns specialists (**orchestrator-worker**). Even one journalist revising their own draft (**self-improvement**) beats publishing draft one.
 
-**The transferable analogy: a publishing house.** A book doesn't come from one person doing everything once. There's an **assembly line** (writer → translator → proofreader = *prompt chaining*), a **front desk** routing manuscripts to the right editor (*routing*), **multiple reviewers** reading in parallel and voting (*parallelization*), an **editor-author back-and-forth** until it passes (*evaluator-optimizer*), and a **managing editor** who breaks a big report into sections, assigns specialists, and stitches it together (*orchestrator-worker*). Each pattern is a different organizational shape for the same goal: **reliable output from fallible individual steps.**
+That's the whole notebook. The model never gets smarter — you arrange the *workflow* around it so mistakes get caught before reaching the reader. The five patterns are five newsroom structures; pick the one whose shape matches your problem's shape.
 
-Two distinctions run through every pattern. First, **workflow vs agent**: workflows put LLM calls on *predefined* code paths (you decide the sequence); agents let the *LLM* decide. Most real systems are hybrids. Second, **the failure mode each pattern fights**: chaining fights overloaded single prompts (but risks error propagation), routing fights one-prompt-can't-serve-all-inputs, parallelization fights slow/shallow single verification, evaluator-optimizer fights self-anchoring bias, and orchestrator-worker fights tasks too complex to decompose in advance.
+**The spectrum the notebook draws:**
+- **Single-shot prompting** — one call, one chance. No iteration, tools, or verification.
+- **Static chains** — a *fixed* sequence (outline → draft → edit). Predictable, but no way to revisit an earlier step if a later one fails.
+- **Agentic workflows** — *close the loop*: generate, evaluate against a criterion, then conditionally refine or re-route. The model becomes a participant in a control loop, not a stateless function.
 
 ---
 
 ## 📖 Core concept primers
 
-The five patterns are the heart of the notebook. Each primer has a **mental model**, plain-English meaning, the notebook's concrete demo, and when to reach for it.
+Six primers cover the notebook's heart: self-improvement, then the five patterns. Each has a **mental model**, plain-English *what*, a tiny Text2SQL example, and *why it matters here*.
 
-### 1. Prompt Chaining (Workflow 1)
+### 1. Self-improvement (Self-Refine + Reflexion)
 
-> **🪜 Mental model:** an assembly line — each station does one job and hands the part to the next.
+> **🪜 Mental model:** the model marks its own homework, then rewrites the wrong answers — before handing the test in.
 
-Decompose a task into a **fixed sequence** of single-responsibility LLM calls, each feeding the next, with optional **validation gates** between steps. The notebook's generic demos: marketing copy → translate → tone-check; and messy-ticket → extract fields → validate schema → format. The Text2SQL chain is 5 stages: **intent extraction → schema grounding → SQL generation → verification → conditional repair**. **When to use:** the task splits cleanly into ordered subtasks you can name in advance. **Watch out:** **error propagation** — a bad step N poisons everything after it, so insert validation gates. It's a *workflow*, not an agent (sequence fixed at design time). **Why it matters here:** it directly kills schema hallucination — Stage 2 grounds entity names against the *real* database, so Stage 3 can't invent columns.
+**What it is.** The agent evaluates its own SQL against structure, meaning, and *actual execution*, then rewrites it conditioned on that feedback — all at **inference time, no weight updates**. Five flavors: **self-reflection** (critique *why* it's wrong), **self-correction** (surgically fix a specific defect), **iterative refinement** (Generate → Feedback → Refine — the **Self-Refine** loop, Madaan et al. 2023), **memory-based improvement** (store `(failed_query, error, corrected_query)` triples and reuse them — the **Reflexion** idea, Shinn et al. 2023), and **feedback-conditioned prompting** (put original query + critique + DB error in one prompt so attempt 2 is better-informed).
 
-### 2. Routing (Workflow 2)
+**Tiny example.** Attempt 1: `SELECT dept, AVG(salary) FROM employees GROUP BY dept`. Execution error: *"column 'dept' does not exist."* Critique + error fed back → Attempt 2 uses `department`. Fixed, no human, no retraining.
 
-> **🪜 Mental model:** a hospital triage nurse — doesn't treat you, just sends you to the right specialist.
+**Why it matters here.** Part 1 of the notebook and the foundation later patterns build on. Key number: **Self-Refine improves outputs 5–40% with just 2–3 iterations**; Reflexion's verbal feedback acts as a **"semantic gradient"** — a *worded* direction for improvement, richer than a numeric pass/fail.
 
-**Classify** the input, then **dispatch** it to a specialized handler (different prompt/tools/model). It's the *control plane* — decides *where* work goes, not *how*. Classification can be rule-based (regex/keywords, fast, no LLM) or LLM-based (handles ambiguity). The notebook routes support tickets into billing / technical / general, each with a tuned handler; adding a category = one new handler + one dispatch entry. **When to use:** distinct input categories that each need different handling, where one prompt would degrade across all of them. **Watch out:** the classifier is a single point of failure — add a confidence threshold and fall back to a human below it.
+### 2. Prompt Chaining (Workflow 1)
 
-### 3. Parallelization (Workflow 3)
+> **🪜 Mental model:** an assembly line — each station does one job and passes the part to the next.
 
-> **🪜 Mental model:** a panel of independent reviewers reading the same paper at the same time.
+**What it is.** Decompose a task into a **fixed sequence** of small single-responsibility LLM calls, each feeding the next. You can drop **validation gates** between stages to catch errors early. It's a *workflow, not an agent* — steps are hardwired at design time, no dynamic tool choice, no going back.
 
-Run **independent** LLM calls **concurrently** (scatter-gather, via `ThreadPoolExecutor`), then aggregate. Two sub-patterns: **sectioning** (different jobs in parallel — e.g., generate a response *while* a separate call screens the input for safety; wall-clock = the slower of the two, not the sum) and **voting** (the *same* job multiple times, aggregate by majority — e.g., 3 SQL critics for schema / aggregation / join correctness; flag an issue only if ≥2 agree). **Prerequisite:** subtasks must be independent — if B needs A's output, that's a chain, not parallel. **When to use:** independent checks/perspectives where you want speed (sectioning) or robustness via redundancy (voting). **Cost:** linear in #calls, but latency stays bounded by the slowest call.
+**Tiny example (the notebook's Text2SQL chain).** Four stages: **(1) intent/entity extraction** → **(2) schema grounding** (query the real DB for table/column names) → **(3) SQL generation** (using only confirmed names) → **(4) verification**. Isolating stage 2 *kills schema hallucination*: the model can't invent `dept` because stage 3 only sees names stage 2 confirmed.
 
-### 4. Evaluator-Optimizer (Workflow 4)
+**Why it matters here.** The simplest pattern and the baseline the others are compared against. Its weakness — **error propagation** (a bad step corrupts everything downstream, no backflow) — is exactly what motivates Evaluator-Optimizer.
 
-> **🪜 Mental model:** an author and a separate editor passing drafts back and forth until it passes review.
+### 3. Routing (Workflow 2)
 
-A **generator** produces output; a *separate* **evaluator** scores it against explicit criteria; structured feedback flows back to the generator for **bounded retries**. The key reason the roles are split: a model critiquing its *own* output suffers **anchoring bias** (reluctant to contradict itself) — a separate evaluator is genuinely adversarial. The notebook's Text2SQL version adds **dual validation**: the LLM evaluator checks 5 dimensions (syntax, schema, joins, aggregation, semantic alignment) *and* the query is actually **executed** against the DB; both must pass to stop. **When to use:** clear evaluation criteria + iterative LLM improvement available. **Why it matters here:** it's the first pattern with a *true feedback loop* — and dual validation catches what neither check alone would (the notebook shows a query that *executes fine* but is *logically wrong*, caught only by the LLM evaluator's "missing HAVING clause").
+> **🪜 Mental model:** a receptionist — reads your request, sends you to the right desk, and is done.
 
-### 5. Orchestrator-Worker (Workflow 5)
+**What it is.** Classify the input, then **dispatch** it to a specialized handler (a different prompt, tool chain, or model). Two stages: **classification** (rule-based keywords *or* LLM-based) and **task dispatch** (a lookup table mapping category → handler). Routing is the **control plane** — it decides *where* work goes, not *how*, and does **not** reason, reflect, or iterate.
 
-> **🪜 Mental model:** a managing editor who reads the brief, decides *which* specialists are needed, assigns sections, and stitches the final report.
+**Tiny example.** A ticket is classified `billing` / `technical` / `general` and sent to a handler tuned for that category. For Text2SQL, route by **complexity**: a simple lookup → cheap fast path; a multi-join aggregation → heavy pipeline.
 
-A central **orchestrator** LLM analyzes a complex task, **decomposes it into subtasks at runtime**, delegates each to a specialized **worker** LLM, then **synthesizes** the results. The defining trait vs prompt chaining: the decomposition is **LLM-decided per input**, not hardcoded — a simple "list all employees" invokes few workers; a complex multi-constraint query invokes many (table/join planner, aggregation planner, subquery handler), and the orchestrator fuses their outputs into one query. **When to use:** tasks too complex for one prompt *and* too unpredictable for a fixed pipeline. **Why it matters here:** it's the most "agentic" workflow — the structure itself is a product of model reasoning.
+**Why it matters here.** Introduces separation of concerns and the key twin: **Routing picks *one* path; Orchestrator-Worker (Workflow 5) delegates to *many* workers.** Risk: **misclassification** — a wrong route has no recovery inside the routing layer.
+
+### 4. Parallelization — Sectioning & Voting (Workflow 3)
+
+> **🪜 Mental model:** a jury — many members judge at once, then you tally the verdicts. (Sectioning = different specialists; Voting = same question asked of many.)
+
+**What it is.** Run multiple LLM calls **concurrently** (scatter) and **aggregate** their outputs (gather). Prerequisite: subtasks must be **independent** — if B needs A's output, that's a chain. Two sub-patterns: **sectioning** (independent *different* jobs — generate a response *while* a separate call screens it) and **voting** (the *same* job run several times for consensus by **majority rule**).
+
+**Tiny example (the notebook's Text2SQL).** *Voting:* three SQL critics — schema, aggregation, joins — run in parallel; an issue is confirmed only if enough agree (filters any single critic's hallucination). *Sectioning:* a safety screener evaluates the *user's intent* in parallel with SQL generation and can block a risky query — it never sees the SQL, so it can't be influenced.
+
+**Why it matters here.** Cost scales linearly with fan-out width (4 verification calls instead of 1), but **wall-clock latency is bounded by the slowest single call**, not the sum. The pattern for "thorough verification without waiting serially."
+
+### 5. Evaluator-Optimizer (Workflow 4)
+
+> **🪜 Mental model:** a writer and a strict editor passing drafts back and forth until the editor stamps APPROVED.
+
+**What it is.** A two-role **iterative loop**: a generator (**optimizer**) produces output, a *separate* **evaluator** judges it against explicit criteria and returns PASS/FAIL + per-dimension repair instructions; failures flow back for **bounded** retries. Splitting the roles beats self-critique because of **anchoring bias** — a model won't honestly contradict itself, but a fresh evaluator has no stake in the output.
+
+**Tiny example.** Generate SQL for "average salary per department, >3 employees, sorted." Evaluator checks 5 dimensions + runs the query. If GROUP BY is missing *or* execution errors, feed the critique back and regenerate. Loop until **evaluator PASS *and* execution succeeds**, or retries run out.
+
+**Why it matters here.** The **first pattern with genuine backflow** — the evaluator's output becomes the generator's next input. The notebook contrasts it with Workflow 1's one-shot repair (Cell 151 table): Evaluator-Optimizer re-evaluates *every* revision with both LLM judgment (logic errors) *and* DB execution (**ground truth** — structural errors). Both must pass.
+
+### 6. Orchestrator-Worker (Workflow 5)
+
+> **🪜 Mental model:** a project manager who reads the brief, decides *at runtime* which specialists are needed, assigns them, then stitches their work into one deliverable.
+
+**What it is.** A two-tier delegation pattern: an **orchestrator** LLM analyzes a complex task, **dynamically decomposes** it into subtasks *based on the input*, delegates each to a specialized **worker** LLM, then **synthesizes** the outputs. The decomposition is **LLM-driven, not hardcoded**.
+
+**Tiny example.** A complex query ("highest-paid employee per department where dept avg > 50k, subquery + HAVING") — the orchestrator spawns a *tables/joins* worker, an *aggregation* worker, and a *subquery* worker, each with full attention on one concern; then it synthesizes one query. A simple "List all employees" invokes *none* of those — the plan adapts to the input.
+
+**Why it matters here.** The most flexible (and most expensive) pattern. Nail the twins: **vs Prompt Chaining** — stages chosen at runtime, not fixed; **vs Routing** — dispatches to *many* workers, not one; **vs Parallelization** — orchestrator *chooses* which workers to run vs a fixed set. Risk: the result rides on the orchestrator's decomposition quality.
 
 ---
 
 ## 🔥 The five patterns — at a glance
 
-| # | Pattern | Shape | Fights | Text2SQL demo |
-|---|---|---|---|---|
-| 1 | **Prompt Chaining** | Sequential, fixed | Overloaded single prompt | intent → ground → generate → verify → repair |
-| 2 | **Routing** | Branch (pick one path) | One prompt can't serve all inputs | classify ticket → specialized handler |
-| 3 | **Parallelization** | Concurrent (use all) | Slow/shallow single check | 3 SQL critics vote; safety screen in parallel |
-| 4 | **Evaluator-Optimizer** | Feedback loop | Self-anchoring; one-shot errors | generate ↔ evaluate (LLM + execution) until pass |
-| 5 | **Orchestrator-Worker** | Delegate + synthesize | Task too complex *and* unpredictable | orchestrator splits query → workers → synthesize |
+Real details from the notebook. Use this table to answer "which pattern fits this task?" — the #1 interview question for this material.
 
-**Two more axes to keep straight:**
-- **Sequential vs branch vs concurrent vs loop vs delegate** — chaining is sequential, routing branches to *one* path, parallelization runs *all* paths, evaluator-optimizer *loops*, orchestrator-worker *delegates* to a runtime-chosen set.
-- **Patterns compose.** The notebook stacks them: a chain generates SQL, parallel critics verify it, an evaluator-optimizer loop refines it. They're building blocks, not either/or choices.
+| Pattern | Shape | Iterates? | Best when… | Text2SQL use in the notebook | Main risk |
+|---|---|---|---|---|---|
+| **1. Prompt Chaining** | Fixed linear sequence | No (no backflow) | Task has predictable, decomposable structure | 4 stages: intent → schema grounding → generation → verification | **Error propagation** — bad step corrupts all downstream |
+| **2. Routing** | Classify → dispatch to one handler | No | Different input *types* need different handling | Route by complexity (cheap path vs heavy pipeline) | **Misclassification** — wrong route, no recovery |
+| **3. Parallelization** | Concurrent fan-out → aggregate | No | Subtasks are **independent** & you want thoroughness/speed | 3 parallel critics (schema/aggregation/join) + safety screener | Cost × fan-out width |
+| **4. Evaluator-Optimizer** | Generate ⇄ evaluate **loop** | **Yes** | Clear criteria + output improves with feedback | Generate → evaluate (5 dims) → execute → repair, bounded retries | Loop cost; needs a hard stopping condition |
+| **5. Orchestrator-Worker** | Decompose → delegate → synthesize | No (decomposes once) | Subtasks **can't be predicted** in advance | Orchestrator picks tables/aggregation/subquery workers per query | Rides entirely on decomposition quality |
 
----
-
-## 🧠 Bonus: the self-improvement layer
-
-Before the 5 patterns, the notebook builds a `SelfImprovingSQLAgent` — worth knowing as its own concept:
-
-- **Self-reflection** (Reflexion, Shinn et al. 2023): the agent writes a natural-language critique of its own output — a **"semantic gradient"** (verbal direction) rather than a numeric reward.
-- **Self-correction:** detect a specific defect → targeted fix.
-- **Iterative refinement** (Self-Refine, Madaan et al. 2023): Generate → Feedback → Refine with the *same* model in all roles; reported 5–40% gains.
-- The agent's loop: generate SQL → **critique** (LLM → structured JSON: syntax/schema/logic/confidence) → **execute** (DB = ground truth) → if failure, **refine** with critique + DB error → repeat to `max_retries`. All at **inference time** — no weight updates, no human.
-
-This is the conceptual bridge from one ReAct agent (Lecture 1) to the feedback-driven Evaluator-Optimizer pattern.
+**Decision shortcut:** steps known & fixed, one pass → **Prompt Chaining**; just pick *where* it goes → **Routing**; independent checks *at once* → **Parallelization**; one artifact to *iterate to correctness* → **Evaluator-Optimizer**; work structure *depends on the input* → **Orchestrator-Worker**.
 
 ---
 
-## 🗺️ Notebook reading map
+## 🧮 Formulas to memorise — (there are none; this is a *pattern-based* lecture)
+
+This lecture has **no load-bearing math formulas** — it's about control-flow patterns and design judgment, not equations. Memorise these **decision rules and distinctions** instead; they're what interviews probe.
+
+**Rule 1 — the reliability/cost trade.**
+`single-shot ≈ 70% correct → agentic workflow ≈ 95% correct, at 2–4× the LLM calls.`
+In words: you buy reliability with extra calls arranged in control flow. Always ask whether the extra cost is justified for the use case.
+
+**Rule 2 — parallelization economics.**
+`cost = O(fan-out width);  latency = slowest single call (not the sum).`
+In words: running N critics costs N× the tokens, but because they run at the same time, you only wait as long as the slowest one — not N× the wait.
+
+**Rule 3 — the famous twins (say these out loud):**
+- **Sectioning vs Voting** — *different* jobs in parallel vs the *same* job repeated for consensus.
+- **Routing vs Orchestrator-Worker** — pick *one* path vs delegate to *many* workers.
+- **Parallelization vs Orchestrator-Worker** — *fixed* worker set vs orchestrator *chooses* workers at runtime.
+- **Prompt Chaining vs Evaluator-Optimizer** — one-way pipeline (no backflow) vs closed feedback loop.
+- **Self-reflection vs self-correction** — open-ended "*why* is this wrong?" vs surgical fix of a specific defect.
+
+**Rule 4 — when Evaluator-Optimizer is justified (all three must hold):**
+`(1) clear articulable criteria  AND  (2) output demonstrably improves with feedback  AND  (3) one pass isn't reliably enough.`
+
+**Rule 5 — dual validation (Evaluator-Optimizer's edge):**
+`stop only when  LLM-evaluation = PASS  AND  DB-execution = success.`
+The LLM catches *logic* errors, execution catches *structural* errors (bad columns, syntax) — need both; execution is the un-foolable **ground truth**.
+
+---
+
+## 🗺️ Notebook reading map — where to spend your attention
 
 | Cells | What it teaches | How to read |
 |---|---|---|
-| 0–48 | **Foundation rebuild**: API key, MySQL+BIRD, persona, 3 tools, planner, ReAct `run_agent` | **Skim** if Lecture 1 is fresh — it's a recap. |
-| 50–61 | **Self-improvement layer**: critique → execute → refine; `SelfImprovingSQLAgent`; error memory | **Focus.** New material; bridges to Workflow 4. |
-| 62–64 | **Intro to agentic workflows**: complexity spectrum; 5 components | **Focus.** Frames everything. |
-| 65–95 | **Workflow 1: Prompt Chaining** — definition, 2 generic demos, 5-stage Text2SQL chain | **Focus.** Note the validation gates. |
-| 96–104 | **Workflow 2: Routing** — classify + dispatch; support tickets | **Focus.** |
-| 105–131 | **Workflow 3: Parallelization** — sectioning + voting; parallel SQL critics | **Focus + slow down.** Two sub-patterns. |
-| 132–155 | **Workflow 4: Evaluator-Optimizer** — generator/critic loop; dual validation | **Focus.** The feedback-loop payoff. |
-| 156–176 | **Workflow 5: Orchestrator-Worker** — runtime decomposition; report + complex SQL | **Focus.** Most agentic pattern. |
+| **1–25** | MySQL + BIRD setup, `employees` demo table, DB connectors | **Skim** — ~4 min. Plumbing; note `employees` exists for demos. |
+| **26–49** | Foundation agent: persona, tools, tool schema, planner, **ReAct** loop | **Read normally** — ~8 min. The base agent every later pattern reuses. |
+| **51–54** | Self-improvement **concepts** (the 5 distinctions) | **FOCUS** — ~6 min. Map each term to the Jargon Card. |
+| **55–62** | Self-improvement **code**: critique, refine, feedback, error memory, forced-hallucination demo | **Read carefully** — ~10 min. Watch the `dept`→`department` trace. |
+| **63–65** | Agentic-workflows intro: spectrum, workflows-vs-agents, 5 components | **FOCUS** — ~5 min. The framing for everything after. |
+| **66–96** | **W1 Prompt Chaining** — demos + 4-stage Text2SQL chain | Definition + Text2SQL; skim demos — ~8 min. |
+| **97–105** | **W2 Routing** — ticket + complexity routing | Definition + Text2SQL — ~5 min. |
+| **106–132** | **W3 Parallelization** — sectioning + voting, parallel SQL critics | **FOCUS** — ~9 min. The sectioning-vs-voting twin lives here. |
+| **133–156** | **W4 Evaluator-Optimizer** — loop + Cell 151 comparison table | **FOCUS** — ~9 min. The Cell 151 table is interview fuel. |
+| **157–end** | **W5 Orchestrator-Worker** — report demo + SQL orchestrator/workers | **FOCUS** — ~8 min. Nail why it ≠ routing and ≠ parallelization. |
+
+**Total notebook read time:** ~80 min if you skim the generic demos and focus on definitions + Text2SQL + comparison tables. Add this brief's ~22 min ≈ **~100 min**, vs the 150+ min of reading the raw 19.6k-word notebook cold.
 
 ---
 
 ## ✅ Walk-away checklist
 
-After the notebook, you should be able to say, in your own words:
+After the notebook, you should be able to say in your own words:
 
-- [ ] Name the 5 workflow patterns and the shape of each (sequential / branch / concurrent / loop / delegate).
-- [ ] The failure mode each pattern is designed to fight.
-- [ ] Why prompt chaining risks **error propagation**, and the countermeasure.
-- [ ] The two parallelization sub-patterns (**sectioning** vs **voting**) and when each fits.
-- [ ] Why Evaluator-Optimizer **separates** generator and evaluator (anchoring bias).
-- [ ] Why **dual validation** (LLM + execution) catches more than either alone.
-- [ ] How Orchestrator-Worker differs from prompt chaining (runtime vs design-time decomposition).
-- [ ] What self-improvement (self-reflection / correction / refinement) means at inference time.
+- [ ] **What "inference-time self-improvement" means** — critique + rewrite at run time, no weight updates; name Self-Refine and Reflexion.
+- [ ] **The five patterns** and each one's *shape* (linear / branch / concurrent / loop / delegate).
+- [ ] **Which pattern fits a task** — the decision shortcut (fixed steps → chaining, pick-a-path → routing, independent checks → parallelization, iterate-to-correct → evaluator-optimizer, input-dependent structure → orchestrator-worker).
+- [ ] **The five twin distinctions** — sectioning/voting, routing/orchestrator-worker, parallelization/orchestrator-worker, chaining/evaluator-optimizer, self-reflection/self-correction.
+- [ ] **Why splitting generator and evaluator beats self-critique** — anchoring bias.
+- [ ] **Why execution is the ground-truth signal** — the DB can't hallucinate; it catches structural errors an LLM misses.
+- [ ] **The core trade-off** — reliability (70% → ~95%) bought with 2–4× more LLM calls.
+
+If any feel shaky, revisit the matching primer above.
 
 ---
 
 ## 🎯 5-question self-check
 
-Answer these using only this Brief. Answers are hidden below.
+Answer in your head, then check below. **No peeking.**
 
-1. You have a support inbox where billing, technical, and general questions each need a different tone and toolset. Which workflow pattern fits, and what are its two stages?
-2. A query *runs without error* against the database but returns the wrong answer (it's missing a `HAVING` clause). Which validation catches this — execution validation or the LLM evaluator — and why does Workflow 4 use both?
-3. In parallelization, what's the difference between **sectioning** and **voting**? Give the notebook's example of each.
-4. Why does Evaluator-Optimizer use a *separate* evaluator LLM instead of asking the generator to critique its own output?
-5. Both Prompt Chaining and Orchestrator-Worker break a task into subtasks. What is the one key difference in *how* the subtasks are determined?
+1. A task has a fixed, predictable set of steps and you only need one pass. Which pattern, and what's its main risk?
+2. You want three independent reviewers to check a SQL query for schema, aggregation, and join errors *at the same time*. Which pattern and sub-pattern is this — and how does it differ from its sibling sub-pattern?
+3. Why does Evaluator-Optimizer split generation and evaluation into two separate LLM calls instead of asking one call to self-critique?
+4. In one sentence each, how does **Orchestrator-Worker** differ from (a) **Routing** and (b) **Parallelization**?
+5. You have a single SQL query that's sometimes wrong and you have clear pass/fail criteria plus a database to run it against. Which pattern fits, and what are the two conditions that must *both* hold before the loop is allowed to stop?
+
+---
 
 <details>
-<summary>Answers</summary>
+<summary><b>Click to reveal answers</b></summary>
 
-1. **Routing (Workflow 2).** Two stages: **classification** (determine the ticket category) and **dispatch** (send it to the specialized handler for that category). Add a confidence threshold so low-confidence cases go to a human.
-2. The **LLM evaluator** catches it — it's a *logical/semantic* error, and the query is syntactically valid so it executes fine. Workflow 4 uses **dual validation** because execution catches *structural* errors (bad columns, syntax) that the LLM might miss, while the LLM catches *logical* errors (wrong aggregation, missing HAVING, semantic mismatch) that execution can't see. Both must pass to stop.
-3. **Sectioning** = different independent jobs run concurrently (e.g., generate a response *while* a separate call screens the input for safety). **Voting** = the *same* job run multiple times and aggregated by majority (e.g., 3 SQL critics — schema, aggregation, join — where an issue is confirmed only if ≥2 agree).
-4. To avoid **anchoring bias** — a model is reluctant to contradict its own output, so self-critique is weak. A separate evaluator has no investment in the generated text and evaluates more objectively, creating genuine adversarial tension.
-5. **When the decomposition is decided.** Prompt chaining's stages are **fixed at design time** (the developer hardcodes the sequence). Orchestrator-Worker decides the subtasks **at runtime** — the orchestrator LLM analyzes each input and chooses which workers to invoke, so a simple query and a complex query get different decompositions.
+1. **Prompt Chaining (Workflow 1).** Fixed linear sequence of single-responsibility LLM calls, no backflow. Main risk: **error propagation** — a flawed output at step N corrupts every downstream step (countered with validation gates between stages).
+2. **Parallelization (Workflow 3), voting sub-pattern** — the *same* verification job run by several critics concurrently, aggregated by majority rule. Its sibling is **sectioning**, which runs *different* independent jobs in parallel (e.g., generate a response while a separate call screens it for safety). Voting = same job repeated; sectioning = different jobs at once.
+3. Because of **anchoring bias**: a single LLM call is reluctant to contradict its own output, so self-critique is weak. A *separate* evaluator has no investment in the generated answer, creating genuine adversarial tension and more honest evaluation.
+4. (a) vs **Routing**: routing makes one classification and dispatches to a *single* handler; the orchestrator dispatches the same input to *multiple* workers. (b) vs **Parallelization**: parallelization runs a *fixed* set of workers regardless of input; the orchestrator *decides at runtime* which workers to invoke based on the specific query.
+5. **Evaluator-Optimizer (Workflow 4).** The loop may stop only when **LLM evaluation = PASS *and* database execution = success** — LLM judgment catches logic errors, execution (the ground-truth signal) catches structural errors like bad columns or syntax. (Plus a bounded retry budget so it can't loop forever.)
 
 </details>
 
-[🔝 Back to top](#top)
+---
+
+[🔝 Back to top](#top) · [→ Jargon Card](./Advanced_Agents_Jargon_Card.md)

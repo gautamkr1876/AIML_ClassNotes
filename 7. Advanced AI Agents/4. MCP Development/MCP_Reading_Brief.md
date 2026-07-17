@@ -1,168 +1,274 @@
 <a id="top"></a>
 # MCP Development — Reading Brief
 
-> **Read this ONCE, end to end, before opening the notebooks.** Target time: ~22 minutes. By the time you reach the notebooks, every word in them will already make sense — you'll be confirming what you already know, not learning blind.
+> **Read this ONCE, end to end, before opening the notebook.** Target: ~22 min. By the time you reach the notebook, every word will already make sense — you'll be confirming what you know, not learning blind.
 >
-> **Side reference:** keep [`MCP_Jargon_Card.md`](./MCP_Jargon_Card.md) open in another tab while reading. When an unknown word appears, look it up there.
-> **The notebooks:** `MCP_Theory.ipynb` (concepts, ~66 cells) + `MCP_Server_Client_Tutorial.ipynb` (a from-scratch Text2SQL MCP build, ~104 cells). Slides in `../3.Agent: Frameworks and Protocols/MCP.pdf`.
-> **Prereq:** function calling / tools from Module 7 Lecture 1 (MCP appeared there as a one-cell addendum; this is the full treatment).
+> **Side reference:** keep [`MCP_Jargon_Card.md`](./MCP_Jargon_Card.md) open in another tab while reading the notebook. When an unknown word appears, look it up there.
+> **The notebook:** `MCP_Server_Client_Tutorial (1).ipynb` in this folder — a *teaching walkthrough* (not a runnable Colab) that builds a Text2SQL agent piece by piece.
 
 ---
 
 ## 🎯 30-second TL;DR
 
-In Lecture 1 you gave an agent tools by hand-writing a JSON schema + a Python function for every capability. That doesn't scale: **M** models × **N** services = **M×N** bespoke connectors to build and maintain. **MCP (Model Context Protocol)** — Anthropic's open standard — fixes this by putting a *protocol* between models and services, collapsing **M×N → M+N**:
+The notebook builds, from scratch, a system where **you ask a database a question in plain English and an LLM answers it by writing and running SQL for you** — without ever touching the database directly.
 
-> Each service implements **one MCP Server**; each app implements **one MCP Client**; they all speak the same JSON-RPC language.
+The three moving parts:
 
-The theory notebook explains the architecture (**Host → Client → Server**, three **primitives**, two **transports**, and features like sampling and roots). The tutorial notebook makes it concrete by rebuilding the **Text2SQL agent** as an MCP Server + Client. The mental one-liner everyone uses: **MCP is USB-C for AI tools** — one standard plug instead of a custom cable per device.
+1. **MCP Server** — exposes three database tools (`list_tables`, `get_table_schema`, `execute_sql`) over the **Model Context Protocol (MCP)**.
+2. **MCP Client** — spawns that server as a subprocess, talks to it over **stdio** pipes, and discovers its tools at runtime.
+3. **Agent Loop** — connects an OpenAI LLM to the client, running a **ReAct** (Reason + Act) cycle.
 
----
+**The headline trace:** for *"How many customers pay in EUR?"* the agent makes **4 LLM calls** and **3 tool calls** (discover → inspect → query), arriving at *"There are 4 customers who pay in EUR"* — for about **$0.002**.
 
-## 🗺️ Agenda — what the notebooks teach, in order
-
-**Theory notebook:**
-1. The integration scaling problem (M×N) and the M+N fix.
-2. Why it matters for production (extensibility, vendor neutrality, maintainability).
-3. Architecture: **Host, Client, Server** + JSON-RPC.
-4. The three **server primitives**: Tools, Resources, Prompts.
-5. Server & Client code-flow walkthroughs for each primitive.
-6. **Transports**: stdio (local) vs Streamable HTTP (remote, via SSE).
-7. Message types: requests, results, notifications.
-8. Core features: **sampling**, log/progress notifications, **roots**.
-
-**Tutorial notebook:**
-9. Build a SQLite DB (employees, customers, orders).
-10. Write 3 plain tool functions (with SQL-injection + SELECT-only guards).
-11. Wrap them in a `FastMCP` server (`@mcp.tool`), add a resource + a prompt.
-12. Build the Client (spawns server over stdio, discovers tools).
-13. The agent loop: OpenAI LLM ↔ MCP Client.
+The single biggest idea: **the server is LLM-agnostic**. Define tools *once*; any client (OpenAI, Claude, Gemini) can use them. That's the whole reason MCP exists.
 
 ---
 
-## 🧠 The big idea — a protocol, not a pile of adapters
+## 🗺️ Agenda — what the notebook teaches, in order
 
-Every integration you wrote by hand in Lecture 1 was a private handshake: *this* app knows how to talk to *this* tool, in a way nothing else can reuse. Add a second model and a third service and you're maintaining a tangle of one-off connectors — the count grows as **M×N**.
+1. **What we're building** — the three parts (server, client, agent) as two processes talking over pipes.
+2. **The three tools** — `list_tables`, `get_table_schema`, `execute_sql`, called in order: discover → inspect → query.
+3. **Sample database** — a SQLite file, three tables (`employees`, `customers`, `orders`, 28 rows), with a foreign key that forces JOINs.
+4. **Tool functions as plain Python** — no MCP yet; testable functions with connection handling and safety checks.
+5. **Safety inside tools** — regex validation vs SQL injection; keyword blocking so only `SELECT` runs; errors returned as strings for self-correction.
+6. **Functions → MCP server** — one `FastMCP` instance, `@mcp.tool()`, and the JSON Schema it auto-generates.
+7. **Bonus primitives** — resources (read-only endpoints) and a prompt template (server-owned persona).
+8. **The stdio entry point** — `mcp.run(transport="stdio")`.
+9. **Building the MCP client** — spawn subprocess, connect handshake, `async with` cleanup, tool wrappers.
+10. **The agent loop** — system prompt, MCP→OpenAI schema conversion, and the ReAct loop.
+11. **End-to-end trace** — one question through every layer, and the resulting `messages` list.
 
-**The transferable analogy: USB-C.** Before USB-C, every device had its own charger; *P* devices × *Q* accessories meant a drawer full of incompatible cables. USB-C defined one standard port, so any device works with any accessory — the drawer collapses to a few universal cables. MCP does this for AI: define one protocol, and any MCP-compliant **Client** (Claude, an IDE, your app) can use any MCP **Server** (GitHub, Postgres, your database), regardless of vendor. You go from **M×N** custom connectors to **M+N** — each side implements the standard *once*.
+---
 
-That single shift buys the three things the theory notebook stresses: **extensibility** (add a tool by deploying a Server, zero changes to the model), **vendor neutrality** (a Server works with any compliant Client), and **maintainability** (one Server owns one interface contract, instead of M adapters drifting out of sync). The rest of MCP is just the concrete shape of that protocol.
+## 🧠 The big idea — MCP is a universal power strip for LLM tools
+
+Before MCP, every time you wanted an LLM to *do* something (query a database, hit an API, read a file) you wrote custom glue — and rewrote it for each model. Like every appliance needing its own unique wall socket.
+
+**Analogy — the universal power strip.** MCP is a standard power strip. The **server** is the strip: labelled sockets (tools), each with a spec sheet (the JSON Schema) saying what plugs in. The **client** is any device that knows the standard socket. Because the socket is standard, you plug in an OpenAI agent today and a Claude one tomorrow — **the strip never changes**. Build the database tools once; every model uses them.
+
+Everything follows from this separation:
+- The **server** knows the database, nothing about the LLM.
+- The **client** knows the transport (stdio pipes), nothing about the database or LLM.
+- The **agent** knows the LLM, nothing about how tools are implemented.
+
+Each layer minds its own business, communicating only through contracts (JSON Schema for tools, JSON-RPC on the wire). That's what makes the system swappable, testable, and safe.
 
 ---
 
 ## 📖 Core concept primers
 
-Five primers cover the heart of MCP. Each has a **mental model**, plain-English meaning, notebook specifics, and why it matters.
+Six primers cover the heart of the notebook — each with a **mental model**, a plain-English *what*, a tiny example, and *why it matters here*.
 
-### 1. The three-component architecture: Host → Client → Server
+### 1. MCP (Model Context Protocol)
 
-> **🪜 Mental model:** an operating system. The **Host** is the OS, each **Client** is a device driver, each **Server** is a peripheral. Apps talk to the OS; the OS mediates the hardware.
+> **🪜 Mental model:** a *universal power strip* — expose tools once via a standard socket; any model can plug in.
 
-**Host** = the user-facing app (IDE, chat, agent platform) — the process container and the **security/trust boundary**. It spawns one **Client** per connection, each managing exactly one **Server**. The **Server** exposes a real system's capabilities. The rule that keeps it secure: **no Server ever talks to the LLM directly** — every capability is mediated through the Host, which controls what's connected and whether the user must consent before a tool runs. **Why it matters here:** it explains the separation of concerns in the tutorial — the server file knows the database, the client file knows the transport, the agent file knows the LLM, and none peeks into the others.
+**What it is.** MCP (Model Context Protocol) is an open standard for connecting LLMs to external tools, data, and reusable prompts through one uniform interface. "M-C-P" spells out its job: a **P**rotocol for giving a **M**odel its **C**ontext (which tools exist, how to call them). Instead of custom glue per model, you build an MCP *server* that advertises capabilities, and any MCP-aware *client* can consume them.
 
-### 2. The three primitives: Tools, Resources, Prompts
+**Why it matters in this notebook.** The payoff line: *"The server is LLM-agnostic. Swap OpenAI for Claude or Gemini — the server doesn't change."* A single converter adapts the server's tool schemas to OpenAI's format; write another for Anthropic and the server is untouched. And the client hardcodes *nothing* — it learns the tools at runtime, so adding a fourth needs no client change.
 
-> **🪜 Mental model:** *who holds the remote?* Tool = the **model** presses the button; Resource = the **app** presses it; Prompt = the **user** presses it.
+### 2. Tools vs Resources vs Prompts (the three server primitives)
 
-A Server exposes capabilities as exactly three primitive types, distinguished by **who controls invocation**:
+> **🪜 Mental model:** tools = buttons the *LLM* presses; resources = files the *client* reads; prompts = form letters the server hands out.
 
-| Primitive | Controlled by | What it is | Example |
+**What they are.** An MCP server can expose three kinds of things:
+- **Tools** — actions the LLM chooses to call (can have side effects). The notebook's `list_tables`, `get_table_schema`, `execute_sql`.
+- **Resources** — read-only data endpoints, like GET requests; the client reads them proactively to pre-load context. Bonus: `db://tables`, `db://schema/{table_name}`.
+- **Prompts** — reusable templates the server defines and the client requests, so the *server* can own the persona. Bonus: `text2sql_analyst`.
+
+**Why it matters in this notebook.** Tools are the main event — what the LLM invokes during the ReAct loop. Resources and prompts are shown as "bonus" to reveal MCP's full surface, but the exam-relevant distinction is **who triggers it**: the *LLM* decides to call a tool; the *client* decides to read a resource.
+
+**Disambiguation table** (from the notebook):
+
+| | Tools | Resources |
+|--|-------|-----------|
+| Who triggers | The LLM decides | The client reads proactively |
+| Side effects | Can have them | Read-only by convention |
+| Use case | Dynamic actions | Pre-loading context, caching |
+
+### 3. Building a tool: plain function → `@mcp.tool()` decorator
+
+> **🪜 Mental model:** the decorator is a *label maker* — you write a normal function; `@mcp.tool()` slaps on the machine-readable label the LLM reads.
+
+**What it is.** In the `mcp` SDK, you write an ordinary Python function, then add `@mcp.tool(name=..., description=...)` above it. The **decorator** (a `@`-line that wraps a function to add behavior) does three things automatically: registers the function in the tool registry, **auto-generates a JSON Schema** from its type hints and `Field` descriptions, and sets up a handler so calls route to it.
+
+**Why it matters in this notebook.** The notebook writes all three tools as plain, testable functions (Section 3), *then* wraps them with the decorator (Section 4) — proving the MCP layer is thin. The whole server is ~150 lines: "most of it is tool logic — the MCP wiring is just decorators and one `mcp.run()` call."
+
+**Tiny concrete example.** For `get_table_schema`, the type hint `table_name: str = Field(description="The exact name of the table to inspect")` auto-generates a JSON Schema declaring a required string parameter `table_name` with that description. The LLM never sees your Python — only this schema. **The schema is the contract**, and the `description` is critical: it's what the LLM reads to decide *when* to use the tool.
+
+### 4. The MCP Client: spawn, connect, discover, call, clean up
+
+> **🪜 Mental model:** the client is a *phone operator* — it dials the server (spawns it), holds the line (session), asks who's available (discover), places calls (call_tool), and hangs up cleanly (cleanup).
+
+**What it is.** The `MCPClient` class does five jobs: (1) **spawn** the server as a subprocess, (2) **connect** over stdio + do the MCP handshake, (3) **discover** tools, (4) **call** tools for the agent, (5) **clean up** by killing the subprocess. It's wrapped in `async with` so cleanup is automatic even on crash.
+
+**Why it matters in this notebook.** This is where "two processes talking over pipes" becomes real. `connect()` has four steps: `StdioServerParameters` (how to spawn), `stdio_client()` (spawn + get read/write streams), `ClientSession` (protocol handler), `initialize()` (handshake). After that, the client can ask "what tools do you have?" — everything else is thin wrappers.
+
+**Tiny concrete example — the whole usage:**
+
+```python
+async with MCPClient(command="python", args=["src/mcp_server.py"]) as client:
+    tools = await client.list_tools()               # discovers 3 tools
+    result = await client.call_tool("list_tables", {})
+# subprocess killed automatically here
+```
+
+The `AsyncExitStack` tracks the subprocess, streams, and session, closing them **in reverse order** — session first, then subprocess. No leaks.
+
+### 5. The ReAct agent loop
+
+> **🪜 Mental model:** a *detective interrogation* — ask a question, follow leads (tools), gather clues (results), and keep going until you can state the conclusion.
+
+**What it is.** **ReAct** = **Rea**son + **Act**. The LLM alternates between *thinking* about the next step and *acting* by calling a tool, using each result to inform the next thought. The code is a `for` loop (capped at `MAX_ITERATIONS = 15`): call the LLM with the tool schemas → if it returned a tool request, run it and append the result to `messages`, loop → if it returned plain text, that's the final answer, stop.
+
+**Why it matters in this notebook.** The key insight: *"The agent doesn't know in advance how many tool calls it'll make. The LLM decides at each step — that's what makes this agentic instead of a fixed pipeline."* A simple count uses 3 tools; a JOIN inspects two schemas first. `tool_choice="auto"` + `temperature=0.0` = adaptive yet deterministic.
+
+**Tiny concrete trace** ("How many customers pay in EUR?"):
+
+```
+Iter 1: LLM → list_tables({})          → ["customers","employees","orders"]
+Iter 2: LLM → get_table_schema(customers) → [id,name,country,currency,balance]
+Iter 3: LLM → execute_sql("SELECT COUNT(*) ... WHERE currency='EUR'") → 4
+Iter 4: LLM → final text: "There are 4 customers who pay in EUR."
+```
+
+### 6. Layered safety (defense-in-depth)
+
+> **🪜 Mental model:** *airport security* — the boarding pass check, the metal detector, and the gate scan each catch what the others miss.
+
+**What it is.** **Defense-in-depth** means stacking safety checks so no single failure is catastrophic. Because tool inputs come from a non-deterministic LLM that can hallucinate or be manipulated, tools are the **trust boundary** between agent and real system — they validate everything.
+
+**Why it matters in this notebook.** Three layers:
+1. **System prompt** tells the LLM the rules ("only SELECT, never invent names").
+2. **`get_table_schema`** validates the table name with the regex `^[A-Za-z_][A-Za-z0-9_]*$` — so `"employees; DROP TABLE employees"` is rejected before the DB is touched (SQL injection blocked).
+3. **`execute_sql`** rejects queries containing `INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/TRUNCATE/REPLACE`, and catches SQL errors, returning them as *strings* so the agent can **read the error and retry** ("column is `currency`, not `currency_code`").
+
+---
+
+## 🔥 The headline example — at a glance
+
+The running example is *"How many customers pay in EUR?"* — the full accounting:
+
+| Aspect | Value |
+|---|---|
+| **Question** | "How many customers pay in EUR?" (plain English) |
+| **Generated SQL** | `SELECT COUNT(*) AS eur_count FROM customers WHERE currency = 'EUR'` |
+| **Answer** | 4 customers |
+| **LLM calls** | 4 (discover → inspect → query → answer) |
+| **MCP tool calls** | 3 (`list_tables`, `get_table_schema`, `execute_sql`) |
+| **Transport** | stdio pipes — no HTTP, no ports, no network |
+| **Cost** | ~$0.002 total |
+| **Model** | `gpt-4o-mini`, `temperature=0.0`, `tool_choice="auto"` |
+
+**The sample database** (3 tables, 28 rows, one foreign key):
+
+| Table | Rows | Key columns | Answers questions like |
 |---|---|---|---|
-| **Tool** | the **model** (LLM) | executable action | run SQL, write a file, call an API |
-| **Resource** | the **app** | read-only data (URI-addressed) | list documents for a file-picker |
-| **Prompt** | the **user** | pre-written template | a slash command / chat-starter button |
+| `employees` | 8 | department, salary, city | "average salary by department?" |
+| `customers` | 10 | country, currency, balance | "how many pay in EUR?" (→ 4) |
+| `orders` | 10 | customer_id (FK), product, amount | "orders from German customers?" (needs JOIN) |
 
-**Why it matters here:** this is the most-tested MCP distinction. A **Tool** is invoked *reactively by the model during* a conversation; a **Resource** is fetched *proactively by the app*, often *before* the LLM is even involved; a **Prompt** fires on an explicit *user* action. The tutorial exposes all three: three tools, a `db://tables` resource, and a `text2sql_analyst` prompt.
-
-### 3. Tools in MCP — schemas for free
-
-> **🪜 Mental model:** you write a normal typed Python function; the SDK writes the LLM-facing paperwork.
-
-In Lecture 1 you hand-wrote each tool's JSON schema. With MCP you just add `@mcp.tool()` above a typed function and the SDK **auto-generates the JSON Schema** from the signature (using `Field(description=...)` for each parameter). The Client and LLM only ever see that schema — never your Python. **Why it matters here:** it removes the most tedious, error-prone part of tool-building, and it enforces the Lecture-1 lesson that *the `description` is the interface* — the tutorial's `execute_sql` description literally says "ONLY SELECT" so the model doesn't waste turns generating a blocked `DELETE`. The tools still validate inputs (regex on table names, SELECT-only keyword blocking) because **tools are the boundary between a non-deterministic agent and a real system**.
-
-### 4. Transports: stdio vs Streamable HTTP
-
-> **🪜 Mental model:** stdio = talking to a program you launched in your own terminal; HTTP = calling a service across the internet.
-
-MCP messages (JSON-RPC) travel over a **transport**. **stdio**: the Client spawns the Server as a **child process on the same machine** and they pipe JSON over stdin/stdout — no network, no ports, and *full bidirectional* messaging works out of the box. **Streamable HTTP**: for **remote** Servers at a URL; since HTTP can't natively push Server→Client, it uses **SSE** streams to fake it. **Why it matters here:** the tutorial uses **stdio** (`mcp.run(transport="stdio")`) — simplest, local, everything works. The theory notebook's warning is the takeaway: deploying the same app over HTTP with `stateless_http=true` or `json_response=true` **silently breaks** sampling, progress, and logging — features that worked in local testing. Know which transport disables what.
-
-### 5. Sampling & roots — the "gotcha" features
-
-> **🪜 Mental model:** *sampling* = the Server borrows the Client's phone to make a call (no phone of its own); *roots* = the Client hands the Server a key to specific rooms only.
-
-**Sampling** inverts LLM access: a Server that needs an LLM (to summarize, classify) doesn't hold an API key — it calls `create_message()` to ask the *Client* (already authenticated) to run the model and return text. This removes the key/cost/abuse liability from public Servers. **Roots** let the Client declare which files/directories a Server may touch (`--roots /home/user/videos`). **Why it matters here:** both carry a beginner trap the notebook flags — **roots are not auto-enforced**; every filesystem tool must manually call `is_path_allowed()`, or the boundary is fiction. Sampling and roots are the features that separate "toy MCP server" from "safe production MCP server."
+**Headline takeaway** (from the Key Takeaways): *"MCP is just plumbing. You write functions, decorate them, and everything works. The server is LLM-agnostic — swap OpenAI for Claude and the server doesn't change."*
 
 ---
 
-## 🔥 The M×N → M+N payoff — at a glance
+## 🧮 Key rules & message-flow (build-based, not formula-based)
 
-| | Without MCP (direct) | With MCP |
-|---|---|---|
-| **Connectors** | M × N (one per model-service pair) | M + N (one per side) |
-| **Add a new model** | +N connectors | +1 (implement the Client) |
-| **Add a new service** | +M connectors | +1 (deploy a Server) |
-| **Tool schema** | hand-authored per tool | auto-generated from function signature |
-| **Vendor lock-in** | per-vendor tool conventions | any compliant Client ↔ any Server |
-| **Maintenance** | M adapters drift per service change | 1 Server updates per change |
+This is a **build tutorial**, so there are no math formulas. Memorise these **flows and rules** — they're what interviewers probe.
+
+### Rule 1 — The tool-call order the agent follows
+
+```
+list_tables → get_table_schema → execute_sql → (final text)
+ discover   →     inspect       →   query     →   answer
+```
+
+**In words:** discover the tables first (never guess a name), inspect the relevant schema next, only then write and run SQL, finally summarise. The system prompt enforces this order so the LLM can't skip a step and hallucinate.
+
+### Rule 2 — The client connect sequence (4 steps)
+
+```
+StdioServerParameters → stdio_client() → ClientSession → initialize()
+  (how to spawn)         (spawn+streams)   (protocol)     (handshake)
+```
+
+**In words:** describe how to launch the server, spawn it and grab the pipe streams, wrap them in a protocol session, then handshake to agree on a version. Only after `initialize()` can you discover or call tools.
+
+### Rule 3 — The ReAct loop condition
+
+```
+if LLM reply has tool_calls:  run them, append results, loop
+else (plain text):            it's the final answer, break
+```
+
+**In words:** the presence or absence of a tool-call request is the *only* signal deciding whether to loop or stop. That single branch is the entire "agentic" mechanism.
+
+### Rule 4 — What `messages` holds (short-term memory)
+
+```
+[ system(persona), user(question),
+  assistant(tool_call), tool(result), ..., assistant(final text) ]
+```
+
+**In words:** persona, question, each tool request, each result, and the final answer are appended in order. This list is resent every LLM call and *is* the agent's memory — on a follow-up question the LLM sees it already knows the schema and skips redundant calls.
 
 ---
 
-## 🗺️ Notebook reading map
+## 🗺️ Notebook reading map — where to spend your attention
 
-**Theory** (`MCP_Theory.ipynb`):
+The notebook is ~104 cells across 7 sections — a teaching walkthrough, so most cells are short markdown + a code snippet.
 
-| Cells | Teaches | How to read |
+| Cells | What it teaches | How to read |
 |---|---|---|
-| 1–9 | M×N problem, M+N fix, why it matters | **Focus.** The "why." |
-| 11–13 | GitHub example; Host/Client/Server architecture | **Focus.** |
-| 15–33 | The 3 primitives (Tools/Resources/Prompts), server+client flow | **Focus + slow down.** Core. |
-| 34–52 | Message types; stdio vs Streamable HTTP; the flags that break things | **Focus.** Note the "what breaks when" table. |
-| 53–65 | Sampling, log/progress, roots | **Read.** Note roots aren't auto-enforced. |
+| **0–6** | The three parts, the three tools, project layout | **Skim** — ~4 min. Just absorb the architecture diagram and the discover→inspect→query idea. |
+| **7–19** | Building the SQLite sample database (3 tables, foreign key) | **Skim** — ~4 min. You only need to know the tables and that `orders` FK forces JOINs. |
+| **20–41** | The three tool functions as plain Python + their safety checks | **FOCUS** — ~10 min. The regex, the keyword block, and "return errors as strings" are prime interview material. |
+| **42–62** | Wrapping functions as an MCP server; `@mcp.tool()`, JSON Schema, resources, prompts, stdio entry point | **FOCUS — this is the MCP core** — ~12 min. Understand the decorator → schema → contract chain. |
+| **63–83** | The MCP client: spawn, connect (4 steps), `async with` cleanup, tool wrappers | **Read carefully** — ~10 min. The connect sequence and AsyncExitStack cleanup are the client's whole story. |
+| **84–100** | The agent loop: system prompt, MCP→OpenAI schema conversion, the ReAct loop | **FOCUS — this is the payoff** — ~12 min. Trace the loop by hand once. |
+| **101–104** | End-to-end data flow trace + `messages` snapshot + Key Takeaways | **Read carefully** — ~6 min. The 5 Key Takeaways are the exam summary. |
 
-**Tutorial** (`MCP_Server_Client_Tutorial.ipynb`):
-
-| Cells | Teaches | How to read |
-|---|---|---|
-| 0–5 | What we're building; project layout | **Read.** The 3-file separation. |
-| 6–18 | Build SQLite DB (employees/customers/orders) | **Skim.** Data setup. |
-| 19–40 | 3 tool functions + guards (SQL-injection regex, SELECT-only) | **Focus.** The safety boundary. |
-| 41–60 | `FastMCP` server: register tools, add resource + prompt, stdio entry point | **Focus.** How `@mcp.tool` replaces hand-written schemas. |
-| 61+ | MCP Client + agent loop (LLM ↔ client) | **Focus.** Ties back to the Lecture-1 ReAct loop. |
+**Total target read time for the notebook:** ~55 min. Add this brief's ~22 min for **~75 min** of real *understanding*, versus reading the raw notebook cold.
 
 ---
 
 ## ✅ Walk-away checklist
 
-After the notebooks, you should be able to say, in your own words:
+After reading the notebook, you should be able to say in your own words:
 
-- [ ] The M×N problem and how MCP makes it M+N.
-- [ ] The roles of **Host**, **Client**, **Server** — and why the Server never touches the LLM.
-- [ ] The three primitives and *who controls* each (model / app / user).
-- [ ] Why `@mcp.tool()` means you no longer hand-write JSON schemas.
-- [ ] stdio vs Streamable HTTP, and which HTTP flags silently break features.
-- [ ] What **sampling** solves and how **roots** scope filesystem access (and that roots aren't auto-enforced).
+- [ ] **What MCP is and why it exists** — a standard interface so tools are defined once and any LLM can use them; the server is LLM-agnostic.
+- [ ] **The three server primitives and who triggers each** — tools (LLM), resources (client), prompts (server-owned templates).
+- [ ] **How a plain function becomes a tool** — the `@mcp.tool()` decorator auto-generates a JSON Schema; the schema, not the code, is what the LLM sees.
+- [ ] **What the client does end to end** — spawn subprocess → stdio handshake → discover → call → auto-cleanup via AsyncExitStack.
+- [ ] **The ReAct loop in one sentence** — call LLM; if it asks for a tool, run it and feed the result back; if it gives text, that's the answer.
+- [ ] **The three safety layers** — system-prompt rules, regex table-name validation, SELECT-only keyword blocking; plus why returning errors as strings enables self-correction.
+- [ ] **The EUR trace** — 4 LLM calls, 3 tool calls, discover→inspect→query→answer, ~$0.002.
 
 ---
 
 ## 🎯 5-question self-check
 
-Answer these using only this Brief. Answers are hidden below.
+Answer in your head, then check below. **No peeking.**
 
-1. An org has 4 AI apps and 6 backend services. How many connectors under direct integration vs under MCP?
-2. A server capability lets the LLM *decide during a conversation* to run a SQL query. Which primitive is that — Tool, Resource, or Prompt?
-3. Your MCP app works perfectly in local testing (stdio) but loses all progress/logging messages after you deploy it remotely. Name a likely cause.
-4. With MCP, you add `@mcp.tool()` to a typed Python function. What does the SDK do that you had to do by hand in Lecture 1?
-5. A public MCP Server needs to summarize data with an LLM but you don't want it holding an API key. Which MCP feature solves this, and how?
+1. What does "the server is LLM-agnostic" mean, and which single piece of code has to change when you switch from OpenAI to Claude?
+2. In MCP, what's the difference between a **tool** and a **resource** — specifically, *who* triggers each?
+3. The `execute_sql` tool catches SQL errors and returns them as a *string* instead of crashing. Why is that a deliberate design choice, not laziness?
+4. Trace the tool calls the agent makes for *"How many customers pay in EUR?"* — how many LLM calls and how many tool calls, and in what order?
+5. What is the `@mcp.tool()` decorator's job, and what does the LLM actually see when deciding whether to call a tool?
+
+---
 
 <details>
-<summary>Answers</summary>
+<summary><b>Click to reveal answers</b></summary>
 
-1. Direct: **4 × 6 = 24** connectors. MCP: **4 + 6 = 10** (each app implements one Client, each service one Server).
-2. A **Tool** — tools are model-controlled and invoked reactively by the LLM during inference. (A Resource is app-controlled read-only data; a Prompt is a user-triggered template.)
-3. You likely deployed over **Streamable HTTP with `stateless_http=true`** (or `json_response=true`), which disables Server→Client messages — breaking sampling, progress, and logging that worked under stdio's full bidirectional channel.
-4. It **auto-generates the JSON Schema** (name, description, parameter types) from the function signature. In Lecture 1 you wrote that schema by hand for every tool.
-5. **Sampling.** The Server calls `create_message()` to ask the **Client** (which is already authenticated to an LLM) to generate the text and return it — so the Server needs no API key, and carries no token cost or abuse liability.
+1. **The MCP server exposes tools through a standard protocol, with zero knowledge of which LLM is calling them.** Switching providers changes only the **agent's schema-conversion function** (`_mcp_tools_to_openai_schema`) and the LLM SDK call — you'd write an Anthropic version instead. The server (`mcp_server.py`) never changes.
+2. **A tool is triggered by the LLM** (it decides to call it; can have side effects). **A resource is triggered by the client** (it proactively *reads* it, like a GET request, to pre-load context; read-only by convention). Mnemonic: tools = buttons the LLM presses; resources = files the client reads.
+3. **Because a failed query is information, not a dead end.** In the ReAct loop the agent *reads* the error string (e.g., "no such column: currency_code"), reasons "the column must be `currency`", and retries. If the tool crashed instead, the loop would break and self-correction would be impossible — a core piece of agentic behavior.
+4. **4 LLM calls, 3 tool calls.** (1) LLM → `list_tables({})` → three tables. (2) LLM → `get_table_schema({"table_name":"customers"})` → columns (finds `currency`). (3) LLM → `execute_sql("SELECT COUNT(*) ... WHERE currency='EUR'")` → 4. (4) LLM returns final text "There are 4 customers who pay in EUR." Order: discover → inspect → query → answer.
+5. **It turns a plain function into a registered MCP tool:** adds it to the registry, **auto-generates a JSON Schema** from its type hints and `Field(description=...)`, and wires up the call handler. The LLM never sees your Python — only the generated schema (name, description, inputSchema). The `description` is what it reads to decide *when* the tool applies, so clarity is critical.
 
 </details>
 
-[🔝 Back to top](#top)
+---
+
+[🔝 Back to top](#top) · [→ Jargon Card](./MCP_Jargon_Card.md)
