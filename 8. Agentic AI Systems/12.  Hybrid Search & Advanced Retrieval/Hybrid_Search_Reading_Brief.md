@@ -44,6 +44,37 @@ The second layer: retrieval gives you a *shortlist*, not an answer — a cross-e
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+The full retrieval stack, cheap stages first:
+
+```mermaid
+flowchart TD
+    Q[User query] --> EXP{"confidence low?<br/>expand query"}
+    EXP -->|3 LLM variants| BM["BM25<br/>exact terms, IDF"]
+    EXP --> DEN["Dense bi-encoder<br/>meaning, 384-dim"]
+    BM -->|ranked list| RRF["RRF fusion<br/>1/(60+rank)"]
+    DEN -->|ranked list| RRF
+    RRF -->|shortlist of 10-20| CE["Cross-encoder rerank<br/>ms-marco-MiniLM"]
+    CE -->|top score vs threshold| GATE{"confident?"}
+    GATE -->|no| ABST["abstain / retry"]
+    GATE -->|yes| VER{"verifier:<br/>sufficient?"}
+    VER -->|insufficient| RETRY["reformulate, retry<br/>max_iters=3"]
+    RETRY --> EXP
+    VER -->|sufficient| GEN["LLM synthesis"]
+    ABST --> RETRY
+```
+
+**Reading it aloud.** Read it top to bottom as a **funnel that gets more expensive at every step**:
+BM25 and the bi-encoder are milliseconds over the whole corpus, RRF is arithmetic, the cross-encoder
+costs hundreds of milliseconds over *ten* documents only, and the verifier is a full LLM call over
+three. That ordering is the entire architectural idea — never let an expensive stage see more than a
+shortlist. The two diamonds are the parts that let the system say "I don't know": a score gate and a
+semantic gate, either of which can send the query back round the loop. Note the retry arrow feeds
+back into query expansion, which is why expansion is *gated* rather than always-on.
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. BM25 — rare words win
@@ -208,6 +239,95 @@ MRR = (1/Q) · Σ_q  1 / rank_q      (0 if the correct document was never retrie
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+Everything in this notebook is a **linear scan**, and each one breaks at a different corpus size.
+`BM25Okapi` holds the tokenised corpus in memory and scores every document per query — fine at 20,
+untenable at 10 million, where you need a real inverted index (Elasticsearch/OpenSearch, Lucene) with
+postings lists and skip pointers. `DOC_MATRIX @ q` is exact brute-force nearest neighbour, replaced
+by an **approximate** HNSW index; note that this is a genuine accuracy trade, not a free win — ANN
+recall is typically 95-99%, so you lose a little to gain sublinear search.
+
+The cross-encoder is the one that *doesn't* break, precisely because it never sees the corpus — it
+sees 10-20 candidates regardless of whether you have 20 documents or 20 million. That invariance is
+the whole point of two-stage retrieval, and it's the single most transferable idea here.
+
+What does break with scale is the **shortlist size decision**. Recall@shortlist falls as the corpus
+grows, so the 10 that worked at 20 documents may need to be 50 at 10 million — and the measured
+latency table says 20 candidates already costs 452 ms.
+
+### Latency & cost budget
+
+Measured in the notebook, plus what production adds:
+
+| Stage | Measured | At scale |
+|---|---|---|
+| BM25 + dense | ~ms over 20 docs | ~10-40 ms with real indexes |
+| RRF | arithmetic | free |
+| **Cross-encoder rerank** | **165 / 246 / 452 ms** for 5 / 10 / 20 | **dominates; GPU-bound** |
+| Verifier | 1 LLM call, ~50-200 ms | same, per request |
+| Query expansion | 1 LLM call + N retrievals | only when gated on |
+
+**Reranking dominates, and it scales linearly with shortlist size** — 5→20 candidates roughly
+triples the cost. That linearity is why "20-50" is the industry range: it's the knee where recall
+gain stops paying for latency. Worst case a single query costs 1 expansion call + N retrievals +
+rerank + verify + retry ×3 — which is why every one of those is gated or capped, and why an
+always-on version of this pipeline would be indefensible.
+
+### The trade-off you're actually making
+
+**Each layer buys accuracy by paying latency, and the last two buy honesty by paying latency.** The
+first half is standard: hybrid costs a second retrieval, reranking costs hundreds of milliseconds,
+expansion costs an LLM call. The second half is the interesting purchase — the threshold gate and the
+verifier buy the ability to **say "I don't know"**, and that is the one capability none of the
+retrieval improvements can provide.
+
+Frame it the way the notebook's Stack Overflow analogy does: *"no results found"* is a product
+decision about whether a confidently wrong answer is worse than no answer. In a support bot, yes,
+overwhelmingly. In an exploratory search UI, showing something imperfect is better than a blank page.
+**The architecture follows from that product call, not the reverse.**
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail — and this notebook demonstrates the top two by accident:
+
+1. **A confidence gate calibrated on too little data, that never fires.** Threshold −11.07, nonsense
+   query scores −10.95, `status: "ok"`. Ten calibration pairs whose positive range (−10.78 to +9.46)
+   overlaps the negative range cannot produce a separating threshold. You now have the *appearance*
+   of an abstention mechanism and none of the protection — strictly worse than no gate, because you
+   trust it.
+2. **An eval set with no headroom.** Seven of eight queries solved at rank 1 by the simplest
+   retriever, so the table cannot distinguish the retrievers and a real regression (0.88 vs 1.00)
+   reads as noise. A ceiling-effect eval set silently green-lights bad changes.
+3. **Tokeniser drift between index and query** — BM25 stops matching, no error, quietly worse recall.
+4. **Index staleness after re-embedding with a different model**, mixing incompatible vector spaces.
+5. **Query expansion adding noise on already-specific queries** — the notebook flags this, which is
+   why expansion must be gated on low confidence rather than run blindly.
+
+### Why an interviewer asks this
+
+"Why hybrid search?" is a litmus test for **whether you understand that retrievers fail in
+complementary ways** rather than one simply being better. The weak answer is "hybrid is more
+accurate." The strong answer names the two failure modes — exact identifiers kill dense, vocabulary
+mismatch kills sparse — and then explains why RRF fuses by rank: because BM25 scores are unbounded
+and cosine is in [−1, 1], so any weighted sum needs a normalisation that is fragile and
+query-dependent.
+
+The follow-up that separates senior from staff is the two-stage question: *"why not rerank
+everything?"* — answered by N forward passes versus precomputed embeddings plus one matrix multiply.
+And the staff-plus probe is evaluation: *"how do you know it got better?"* This notebook is the
+cautionary tale — it shipped narration that its own numbers contradict. Being able to look at a
+retrieval table and say "this eval set has no headroom, I don't trust this result" is the judgement
+being tested.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 - [ ] Why BM25 wins on `INC-2847` and loses on a paraphrase — in terms of IDF.
@@ -217,16 +337,24 @@ MRR = (1/Q) · Σ_q  1 / rank_q      (0 if the correct document was never retrie
 - [ ] Why raw cosine is a poor abstention signal and a calibrated cross-encoder score is better.
 - [ ] What the verifier does that the previous lecture's reflection didn't.
 - [ ] Why this notebook's own eval table shows a regression, and what that teaches.
+- [ ] **(staff)** Which pipeline stage is invariant to corpus size, and why that's the point of two-stage retrieval.
+- [ ] **(staff)** Why a confidence gate that never fires is worse than no gate at all.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 1. A user searches `RFC-014`. Which retriever finds it instantly, which struggles, and what single property of the term explains both?
 2. BM25 returns 4.501 for its top hit; cosine similarity is bounded in [−1, 1]. Why is averaging them a bad idea, and what does RRF do instead?
 3. Your corpus has 2 million documents and you want cross-encoder accuracy. What's the architecture, and why can't you simply rerank everything?
 4. Document D appears at rank 1 in BM25 and rank 2 in dense. Document E appears at rank 3 in dense only. Compute both RRF scores with k = 60 and say which wins.
 5. Your reranker shows Hit@3 of 0.88 against 1.00 for plain hybrid on your 8-query eval set. Give two plausible explanations and say what you'd do next.
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. Your corpus goes from 20 documents to 10 million. Walk each stage of the pipeline and say what changes — including the one stage that doesn't.
+7. You inherit this system. The confidence gate has never fired in production. Diagnose it, and say why the current state is worse than having no gate.
+8. Your team wants to ship a reranker that improves MRR from 0.938 to 0.951 on the 8-query eval set. Do you ship it?
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -240,6 +368,14 @@ MRR = (1/Q) · Σ_q  1 / rank_q      (0 if the correct document was never retrie
 4. D = 1/(60+1) + 1/(60+2) = 0.01639 + 0.01613 = **0.03252**. E = 1/(60+3) = **0.01587**. D wins by roughly 2×. The lesson: appearing in *both* lists is worth far more than a slightly better position in one — which is exactly the robustness hybrid search is buying.
 
 5. (a) **Ceiling effect and tiny sample** — seven of eight queries are already solved at rank 1 by the simplest retriever, so there's no headroom to show improvement, and with only 8 queries a single one moving by one rank swings MRR by several points. (b) **A genuine regression** — a small cross-encoder really can reorder a good shortlist for the worse on a particular query type (here it pushed the paraphrase target from rank 2 to rank 4). Next step: **widen the eval set** to include hard queries the baseline actually fails, re-measure, and inspect the per-query table to see whether the reranker's losses are systematic (a query type it's bad at) or noise. Do not ship a retriever that regresses on your eval set.
+
+**Staff answers**
+
+6. **BM25:** in-memory `BM25Okapi` scoring every document becomes a real inverted index (Elasticsearch/OpenSearch/Lucene) with postings lists — same algorithm, different data structure. **Dense:** `DOC_MATRIX @ q` exact brute force becomes an ANN index (HNSW via FAISS/Chroma/pgvector); note this is a real trade — you accept ~95-99% recall for sublinear search. **RRF:** unchanged, it's arithmetic over ranks. **Cross-encoder: unchanged — and this is the interesting answer.** It only ever sees the 10-20 shortlisted candidates, so its cost is invariant to corpus size; that invariance is the entire reason two-stage retrieval exists. **What you must retune:** shortlist size, because recall@k falls as the corpus grows — you may need 50 candidates instead of 10, and the latency table says that costs roughly 3×. **What you must add:** an ingestion pipeline, since nothing here updates an index incrementally.
+
+7. **Diagnosis:** the threshold was calibrated from 10 labelled pairs whose score ranges *overlap* — relevant pairs span −10.78 to +9.46, irrelevant ones cluster at −11.48 to −11.35 — so the midpoint rule produces −11.07, a value below almost everything including genuinely irrelevant results. The notebook's own nonsense query scores −10.95 and passes. **Why it's worse than no gate:** with no gate, everyone downstream knows the retriever always returns something and treats results with appropriate suspicion. With a gate that never fires, you have a `status: "ok"` field that the rest of the system — and the humans reading dashboards — treat as a *signal*, when it's a constant. You've added false assurance, which is the most expensive kind of bug. **Fix:** calibrate on hundreds of labelled pairs across query types, choose the threshold from an explicit precision/recall trade-off rather than a midpoint, and monitor the firing rate in production — a gate that fires 0% or 100% of the time is broken by definition.
+
+8. **No — not on that evidence.** An 8-query eval set where seven queries are already solved at rank 1 by the simplest retriever has no headroom: the entire difference between 0.938 and 0.951 is one query moving a fraction of a rank, which is indistinguishable from noise. You cannot detect a 1.3-point improvement with a sample of 8. **What I'd require first:** expand the eval set to a few hundred labelled queries that deliberately include the hard cases the baseline *fails* — identifier queries, paraphrases, vocabulary mismatches, and queries with no answer in the corpus — then re-measure with per-query rank deltas so you can see whether the reranker's wins and losses are systematic or random. This notebook is the cautionary tale in both directions: on its eval set the reranker actually *regressed* to 0.88/0.906, and the prose still described the metrics as climbing. If your eval set can't tell you which way you moved, it can't authorise a ship.
 
 </details>
 

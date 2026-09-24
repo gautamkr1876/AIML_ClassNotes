@@ -47,6 +47,41 @@ That's the whole leap from "chained prompts" to "multi-agent system": **a shared
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+The §8 GroupChat is the thing everything else builds toward. This is what one round actually looks like:
+
+```mermaid
+sequenceDiagram
+    participant PM as Product_Manager
+    participant MGR as GroupChatManager
+    participant MA as Market_Analyst
+    participant TA as Technical_Analyst
+    participant SA as Security_Analyst
+    participant FA as Finance_Analyst
+    PM->>MGR: opening prompt (should we launch?)
+    MGR->>MA: your turn + FULL history
+    MA-->>MGR: adoption depends on extraction accuracy
+    MGR->>TA: your turn + FULL history
+    TA-->>MGR: feasible via OCR, but validate outputs
+    MGR->>SA: your turn + FULL history
+    SA-->>MGR: rebuts: receipts carry financial PII
+    MGR->>FA: your turn + FULL history
+    FA-->>MGR: pilot, not full launch
+    MGR->>PM: your turn + FULL history
+    PM-->>MGR: summarise + recommend
+    Note over MGR: stops at max_round = 11
+```
+
+**Reading it aloud.** Every arrow into an agent carries the **entire conversation so far**, not just
+the previous message — that shared history is the only mechanism that lets the Security Analyst
+rebut a claim the Market Analyst made two turns earlier. The manager never contributes content; it
+only decides whose turn is next, and with `round_robin` that decision is a fixed rotation. The
+`Note` is the safety rail: without `max_round=11` the loop has no natural end, because no agent is
+ever told the meeting is over.
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. The agent = system message
@@ -162,6 +197,84 @@ GroupChat(agents=[...], messages=[], max_round=11, speaker_selection_method="rou
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+**Context window, and it breaks quadratically.** Every agent is fed the full shared history before
+generating, so with `A` agents over `R` rounds the total tokens sent is O(A·R²), not O(A·R). Five
+agents × 11 rounds at 2-4 sentences each is comfortable; five agents × 60 rounds, or ten agents ×
+20, is not — and the failure is quiet, because the model silently truncates or loses the middle of a
+long prompt rather than erroring. This is why the system messages all end with *"Keep every message
+to 2-4 sentences"*: that instruction is a **context-budget control**, not a style preference.
+
+The second limit is `LocalCommandLineCodeExecutor`. It runs model-written Python as a local
+subprocess with a 30-second timeout and no sandbox boundary — fine in a disposable Colab VM,
+completely unshippable as a multi-tenant service. The production shape is a container or microVM per
+execution with no network and a read-only filesystem.
+
+### Latency & cost budget
+
+The pattern table in the previous section is really a cost table. Concretely, per case-study run:
+
+| Stage | Model calls | Note |
+|---|---|---|
+| §2 basic agent | 1 | the unit of comparison |
+| §5 reflection | 3 | 3× a single answer |
+| §6 tool calling | 2-3 | + one cheap Python call |
+| §8 GroupChat | **up to 11** | **dominates — and each is the largest prompt** |
+
+GroupChat is ~11× a single agent on call count *and* the priciest per call, because prompt size grows
+every round. Latency is strictly serial: round-robin means no two agents ever generate concurrently,
+so wall clock is the sum of 11 completions. That serialisation is a design choice you can revisit —
+independent analysts (market, technical, security, finance) have no data dependency on each other in
+round 1 and could be fanned out concurrently, exactly like the LangGraph lecture's four research
+agents, with only the summarising PM turn forced to wait.
+
+### The trade-off you're actually making
+
+**You are buying genuine multi-perspective disagreement by paying quadratic token growth and fully
+serial latency.** The alternative is one call with a prompt saying "consider this from market,
+technical, security and finance angles" — one round trip, a fraction of the cost. What that loses is
+the thing §8 actually demonstrates: a single model asked to self-critique tends to converge on one
+voice, whereas separate agents with *adversarial* system messages ("actively disagree with overly
+optimistic claims") hold their positions across rounds. You are paying 11× for the disagreement to
+be real rather than performed.
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail:
+
+1. **Manufactured consensus.** If the system messages don't force dissent, five agents converge and
+   produce a confident recommendation with no adversarial pressure — indistinguishable in shape from
+   a well-argued one. This notebook defends against it explicitly (*"Do NOT simply agree with
+   everyone"*), which is the tell that it's the known failure of the pattern.
+2. **Silent context truncation** as rounds accumulate — early constraints drop out of the window and
+   the final recommendation quietly ignores them.
+3. **`max_round` hit mid-argument.** The loop stops on a turn count, not on a conclusion, so you can
+   get a truncated debate with no PM summary. Nothing flags that the meeting was cut off.
+4. **`"LGTM"`-style substring control flow** (§5's sibling pattern) and `is_termination_msg` matching
+   `"DONE"` anywhere in content — a model that says "I'm not DONE yet" terminates the loop.
+
+### Why an interviewer asks this
+
+"Build a multi-agent system" is a litmus test for **whether you can justify the agent count.** The
+weak answer adds agents because the architecture diagram looks better with five boxes. The strong
+answer starts from one call and forces each additional agent to earn its 2-4× cost — and can say
+precisely what §8 buys over a single well-prompted call.
+
+The follow-up that separates senior from staff is the termination question: *"what stops it?"* Every
+loop here has an explicit cap (`max_turns`, `max_round`, `max_consecutive_auto_reply`), and knowing
+which cap governs which loop — and that a turn-count cap means you can terminate mid-argument — is
+the operational maturity being probed. The third probe is safety: if you describe an agent that
+writes and runs code and don't volunteer the sandbox boundary, that's the answer.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 - [ ] Why five agents built from the *same* config behave differently.
@@ -170,16 +283,24 @@ GroupChat(agents=[...], messages=[], max_round=11, speaker_selection_method="rou
 - [ ] What a `GroupChat` actually is, mechanically (shared history + turn rule).
 - [ ] Why `max_round` and `max_turns` exist, and what breaks without them.
 - [ ] Why ReAct is "just tool calling applied to reasoning."
+- [ ] **(staff)** Why GroupChat token cost grows quadratically with rounds, and what the 2-4 sentence rule is really controlling.
+- [ ] **(staff)** What 11 calls buy you over 1, and the case for choosing the single call anyway.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 1. You want the Security Analyst to be more aggressive. What single thing do you change?
 2. The Finance Analyst needs an exact ROI figure. Why is tool calling the right answer rather than just asking the model to compute it — and which two decorators do you need?
 3. In §8 the Security Analyst rebuts the Market Analyst's claim. What mechanism makes that possible?
 4. Revenue $150,000, cost $50,000. What does `calculate_roi` return, and how?
 5. §11's extraction gets a field wrong. Which agent from §8 predicted exactly this, and what did they recommend?
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. Your team wants the FinTrack debate to run 40 rounds instead of 11 for a deeper analysis. What happens to cost and to answer quality, and what would you change first?
+7. A colleague proposes replacing the five-agent GroupChat with a single Gemini call prompted to "consider market, technical, security and finance angles." Make the strongest case *for* their version, then say what you'd lose.
+8. You're shipping §7's code-execution agent as a customer-facing feature. What's the first thing you change, and why is the current setup fine in Colab but not in production?
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -193,6 +314,14 @@ GroupChat(agents=[...], messages=[], max_round=11, speaker_selection_method="rou
 4. `(150000 − 50000) / 50000 × 100 = 200.0%`. Gemini decides the tool applies, emits `calculate_roi(revenue=150000, cost=50000)`, AG2 runs the real Python function, and the string `"200.0%"` is sent back into the conversation for the model to report.
 
 5. The **Technical Analyst**, whose system message says the feature is feasible with OCR and LLM extraction *but* that receipt formats vary significantly, so **extracted data must be validated before being trusted**. §11's own closing note makes the link explicit: any mistake you see there is a live example of that risk.
+
+**Staff answers**
+
+6. **Cost grows quadratically, and quality likely degrades.** Each round re-sends the full history, so total tokens scale O(R²), not O(R) — 40 rounds is roughly 13× the token cost of 11, not 3.6×. Quality degrades because once the accumulated history approaches the context window, early constraints get silently truncated and the final recommendation quietly stops honouring them. First change: don't extend the rounds — **summarise**. Compact the history every N rounds into a running brief, or give the manager a termination condition based on convergence (no new argument introduced) rather than a raw turn count, so the meeting ends when it's done rather than when the counter expires.
+
+7. **The case for them is strong:** one round trip instead of eleven, roughly a tenth the token cost, no context-growth problem, no `max_round` truncation risk, and far less code to maintain. For a low-stakes summary it's the right call and the five-agent version is over-engineering. **What you lose is that the disagreement stops being real.** A single model asked to argue with itself converges on one voice and tends to produce balanced-sounding prose rather than genuine conflict; §8's Security Analyst holds an adversarial position *across* rounds because its system message tells it to and because it can see and directly rebut what the Market Analyst actually said. You pay 11× for dissent that persists under pressure. Choose the single call unless the decision genuinely warrants adversarial review.
+
+8. **Replace `LocalCommandLineCodeExecutor` with an isolated sandbox** — a container or microVM per execution, no network egress, read-only filesystem, strict CPU/memory caps, and a much shorter timeout. Colab is fine because the runtime is disposable, single-tenant, and already the user's own environment: model-written code can only damage a VM that's about to be discarded. In production it's arbitrary code execution on your infrastructure on behalf of an untrusted user, and the prompt is an untrusted input path straight to it. The related change is scope: prefer §6's **tool calling** — a fixed, audited set of functions — over §7's open code execution wherever the task can be expressed as a predefined function, because the attack surface is the difference between one vetted signature and the whole language.
 
 </details>
 

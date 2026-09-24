@@ -57,6 +57,36 @@ And the corollary the notebook demonstrates by example: **once you know the page
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+Two ways to get data off a page. The notebook builds the left path, then quietly prefers the right:
+
+```mermaid
+flowchart TD
+    subgraph AG["Full agent (browser-use)"]
+        A1[Task in English] --> A2[Serialize DOM to numbered list]
+        A2 --> A3["LLM picks: click element 7"]
+        A3 --> A4[Playwright executes + auto-waits]
+        A4 --> A2
+        A4 -->|done or max_steps=8| A5[Free-text result]
+    end
+    subgraph SC["Scrape + structure (cells 24, 26)"]
+        B1[Known selectors] --> B2["Playwright: tr.athing rows"]
+        B2 --> B3[Messy text: 424 points by ... 292 comments]
+        B3 --> B4[ONE Groq call, strict JSON schema]
+        B4 --> B5[Pydantic-validated objects]
+    end
+```
+
+**Reading it aloud.** The left path has a **cycle** — perceive, decide, act, perceive again — and
+every trip round that cycle is another LLM call, which is where its cost and its non-determinism both
+come from. The right path is a straight line with exactly one model call, placed at the only step
+that genuinely needs judgement: turning `424 points by fnthawar2 3 hours ago | hide | 292 comments`
+into typed fields. Same data, same page; the difference is whether the LLM is driving or parsing.
+Choose the cycle only when you don't know the page.
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. Browser → Context → Page
@@ -215,6 +245,92 @@ repeat up to N times: scroll → wait → count items → stop if count unchange
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+**Memory, and it runs out fast.** A Chromium process is ~100-300 MB resident before it loads
+anything; each additional context adds tens of megabytes. That is the reason the Browser → Context →
+Page hierarchy is worth memorising: contexts give you isolated identities at a fraction of the cost
+of a browser each, so a 4 GB worker runs perhaps 10-20 contexts and *one* browser — not 15 browsers.
+Get that wrong and you OOM the box at a concurrency that looks trivially small on paper.
+
+The second limit is the **target site**, not your infrastructure. Scaling browser automation means
+scaling detectable traffic from one IP: rate limits, CAPTCHAs and IP bans arrive long before your
+CPU does. The `--disable-blink-features=AutomationControlled` flag and a realistic `user_agent` in
+cell 15 defeat only the naive checks.
+
+Third: **`storage_state` files are credentials at scale.** One session file is a `.gitignore` entry.
+A thousand rotating accounts is a secrets-management system with rotation, encryption at rest and an
+audit trail — and a single leak means account takeover, not a data breach.
+
+### Latency & cost budget
+
+Compare the two paths in the diagram, per page:
+
+| | Full agent | Scrape + structure |
+|---|---|---|
+| LLM calls | 1 per step, `max_steps=8` | **exactly 1** |
+| Wall clock | 8 × (model + page action) | 1 page load + 1 completion |
+| Determinism | different path per run | identical every run |
+| Cost driver | **the loop** | the single parse |
+
+Browser startup is the fixed floor on both — hundreds of milliseconds to seconds, which is why you
+launch once and reuse contexts rather than per task. Beyond that the agent path is roughly an order
+of magnitude more expensive and slower, and the notebook's own defences (`max_tokens=512`,
+`max_steps=8`) exist because the uncapped version hits Groq's rate limits. Note what `use_vision`
+does to this budget: a screenshot is thousands of image tokens per step, so vision mode multiplies an
+already-dominant cost across the whole loop.
+
+### The trade-off you're actually making
+
+**The agent buys you tolerance of unknown and changing pages by paying ~10× cost, high latency and
+non-determinism.** Scraping buys speed, repeatability and a tenth the cost by requiring that you know
+the selectors — and accepting that a redesign silently breaks you.
+
+The decision rule is about **change frequency, not difficulty**: automate deterministically when the
+page is stable and you'll run it repeatedly (the hourly Hacker News job), use the agent when the page
+is unknown, varies per user, or is a one-off. The strongest production shape is the hybrid this
+notebook lands on without announcing it — deterministic extraction plus one LLM call for the parsing
+step that genuinely needs judgement.
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail:
+
+1. **Silent selector rot.** A class hash changes on deploy, your locator matches nothing, and the
+   job "succeeds" with zero rows. Nothing errors. Guard with an assertion on expected result count,
+   not on exception-free completion.
+2. **Partial page capture.** An SPA hasn't finished rendering; you extract 3 items instead of 40 and
+   never know. This is why `networkidle` is a trap on sites that never idle — it times out or
+   returns early, and either way you proceed with an incomplete DOM.
+3. **Agent loop hits `max_steps` and returns a plausible partial answer** rather than reporting that
+   it never finished.
+4. **Session expiry.** `storage_state` silently stops being authenticated; you scrape the logged-out
+   version of the page and get a valid-looking empty result.
+5. **Over-broad extraction.** The BBC scraper takes every `<a>` with text ≥ 15 characters, so
+   navigation chrome enters the LLM's input and can surface as a "headline".
+
+### Why an interviewer asks this
+
+"Scrape this site" is a litmus test for **whether you reach for the heaviest tool first.** The weak
+answer launches a browser immediately. The strong answer asks whether there's an API, then whether
+the content is in the initial HTML (`requests` suffices), and only then reaches for a real browser —
+because each rung up that ladder costs an order of magnitude more.
+
+The follow-up that separates senior from staff is maintenance: *"this runs nightly for two years —
+what breaks?"* Selector rot, session expiry and anti-bot escalation, all of them silent. Volunteering
+"I'd assert on expected row count so a zero-row success pages someone" is the answer they want,
+because it shows you've operated a scraper rather than written one. The third probe is the
+ethical/legal boundary — robots.txt, terms of service, PII, and rate limiting as courtesy rather than
+just as evasion.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 - [ ] The Browser → Context → Page hierarchy, and why context is the useful middle layer.
@@ -224,16 +340,24 @@ repeat up to N times: scroll → wait → count items → stop if count unchange
 - [ ] The two auth patterns, when each applies, and why the state file is a credential.
 - [ ] DOM-serialization vs vision perception, and why this notebook uses DOM-only.
 - [ ] When to use a full agent versus deterministic scrape + one structuring call.
+- [ ] **(staff)** Why one browser + N contexts is the right shape, and what twelve browsers costs you.
+- [ ] **(staff)** Why exception-free completion is not success, and what to assert on instead.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 1. You need to scrape the same site as three different logged-in users, in parallel, in one script. Which layer of the hierarchy do you create three of, and why not the others?
 2. A test clicking `button.css-1a2b3c` passes today and fails after a deploy, with the button visually unchanged. Diagnose it and give the fix.
 3. Your agent must click a button that appears 2 seconds after page load, behind a fade-in animation. How much waiting code do you write, and why?
 4. You're extracting the top 5 Hacker News stories every hour. Would you use a browser-use agent or Playwright + a structuring LLM call? Give two reasons.
 5. A colleague commits `auth_state.json` so teammates can run the scraper. What's wrong, and what should they do instead?
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. You must extract the top 5 stories from one known site every hour for a year. Argue for the deterministic path over the agent, in cost and in maintenance terms.
+7. Your nightly scraper has "succeeded" every night for three weeks but the downstream table is empty. List the three silent failures you'd check first, and the one guard that would have caught all of them.
+8. A worker box has 4 GB of RAM and you need 12 concurrent logged-in scraping sessions. Lay out the object hierarchy you'd create, and say what the naive version gets wrong.
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -247,6 +371,14 @@ repeat up to N times: scroll → wait → count items → stop if count unchange
 4. **Playwright + one structuring call.** (a) The page is known and stable — you can write `tr.athing` once and it keeps working, so you're paying an LLM every step for a decision that never changes. (b) Determinism and cost: one LLM call per run instead of one per agent step, and the same result every time, which matters for something running hourly. An agent earns its cost only when the page is unknown or changing.
 
 5. `auth_state.json` contains live session cookies — **anyone with the file can act as that account**, no password needed. It's an SSH key, not config. It should be `.gitignore`d, and if already committed, rotated (log out everywhere to invalidate the sessions) and purged from history. Teammates should each run the one-time local login to generate their own; in production the file belongs in a secret manager.
+
+**Staff answers**
+
+6. **Cost:** the agent makes up to 8 LLM calls per page (`max_steps=8`), the deterministic path makes exactly 1 — roughly an order of magnitude, multiplied by 8,760 runs a year. **Determinism:** the agent may take a different path each run, so a schema change surfaces as intermittent weirdness rather than a clean break; the scraper either works or fails the same way every time, which is far cheaper to debug. **Maintenance is the interesting part, and it's a genuine cost on the deterministic side** — `tr.athing` breaks when the site redesigns, and you'll do that fix maybe once or twice a year. That's the honest trade: a couple of hours of selector maintenance annually versus 70,000 extra LLM calls and a non-reproducible pipeline. For a known, stable page run repeatedly, the scraper wins decisively. The agent earns its cost when the page is unknown or changes per request.
+
+7. **Three to check:** (a) **selector rot** — a build-generated class hash changed on deploy, so the locator matches nothing and the loop writes zero rows; (b) **session expiry** — the `storage_state` cookies lapsed, so you're scraping the logged-out page, which renders fine and contains none of the data; (c) **partial render** — the wait condition returns before the SPA has populated the list, so you extract an empty container. **The one guard that catches all three: assert on expected result count.** All three failures are "completed without raising", so exception-free completion proves nothing. `assert len(rows) >= MIN_EXPECTED` — or a job that pages someone when row count drops more than X% against the trailing average — converts every one of them from a silent three-week outage into a first-night alert.
+
+8. **One `Browser`, twelve `Context`s, one `Page` each** (more pages per context if a session needs tabs). A Chromium process is ~100-300 MB resident on its own, while each additional context costs tens of megabytes — so one browser plus twelve contexts lands comfortably inside 4 GB, and each context carries its own cookies, `localStorage` and identity, which is exactly what "twelve logged-in sessions" requires. **The naive version launches twelve browsers**, paying the full process cost twelve times, blowing past 4 GB and OOM-ing the box at a concurrency that should be trivial. The other naive version goes too far the other way — twelve *pages* in one context — which fits in memory but shares one cookie jar, so all twelve tabs are the same user and the isolation requirement is silently violated. `storage_state` and `user_agent` are set per **context**, which is the API telling you where the identity boundary lives.
 
 </details>
 

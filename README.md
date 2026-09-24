@@ -168,7 +168,12 @@ From a single ReAct agent to composable multi-agent workflow patterns, the MCP t
 
 ### 🧵 Module 8: [Agentic AI Systems](./8.%20Agentic%20AI%20Systems/)
 
-Building real agentic systems end to end. Starts with the engineering layer *underneath* agents — **async & concurrency**, the `asyncio` toolkit every agent framework is built on — then **multi-agent orchestration** (LangGraph supervisor/fan-out, AutoGen GroupChat), **advanced agent patterns** (ReAct, reflection, memory), **browser automation** (Playwright + browser-use), and a four-lecture arc through **retrieval**: LlamaIndex index types → agentic RAG + GraphRAG → hybrid search, reranking and self-correcting retrieval. Each lecture with a notebook ships a **Fast Reading Companion** pack (📖 Reading Brief + 📚 Jargon Card) to pre-read before the notebook.
+Building real agentic systems end to end. Starts with the engineering layer *underneath* agents — **async & concurrency**, the `asyncio` toolkit every agent framework is built on — then **multi-agent orchestration** (LangGraph supervisor/fan-out, AutoGen GroupChat), **advanced agent patterns** (ReAct, reflection, memory), **browser automation** (Playwright + browser-use), and a four-lecture arc through **retrieval**: LlamaIndex index types → agentic RAG + GraphRAG → hybrid search, reranking and self-correcting retrieval. Each lecture with a notebook ships a **Fast Reading Companion** pack (📖 Reading Brief + 📚 Jargon Card) to pre-read before the notebook. Every Brief runs a **four-rung ladder** — *name it* (jargon) → *explain it* (primers with worked examples) → *use it* (formulas, reading map, gotchas) → **judge it** (🏛️ staff-engineer lens: scale, latency/cost, trade-offs, silent failure modes, interview framing) — and carries a mermaid diagram of the notebook's real data path.
+
+#### 🧭 Visual study deck — skim the whole module in 45 slides
+
+- 🖥️ [**Agentic AI Systems — Visual Study Deck**](./8.%20Agentic%20AI%20Systems/Agentic_AI_Systems_Visual_Deck.html) — *one self-contained HTML file. Every concept on a single screen as **what it is / why it exists / advantage / disadvantage / use case**, backed by a real number from the notebook — plus a **staff-engineer slide** per lecture (scale, latency & cost budget, the real trade-off, silent failure modes, why an interviewer asks). Keyboard-driven (`←` `→`, `O` for the contact sheet, `T` for theme). Read this when you want the picture, not the prose.*
+  > ℹ️ GitHub does not render HTML in-browser — download the file and open it locally, or use **Download raw file** then open.
 
 #### Notebooks
 

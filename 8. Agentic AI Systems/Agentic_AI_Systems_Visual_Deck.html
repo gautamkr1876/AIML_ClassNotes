@@ -1,0 +1,782 @@
+<title>Agentic AI Systems — Visual Study Deck</title>
+<style>
+:root{
+  --ground:#F7F8FA; --surface:#FFFFFF; --surface-2:#EEF1F6;
+  --ink:#16202E; --ink-soft:#55637A; --ink-faint:#8C99AD;
+  --line:#DCE2EB; --line-strong:#C2CBD8;
+  --accent:#2F6F8F; --accent-soft:#E4EFF5;
+  --signal:#C06A16; --signal-soft:#FBEEDF;
+  --good:#1F7A4D; --good-soft:#E6F3EC;
+  --bad:#9E3B34; --bad-soft:#F8EAE8;
+  --shadow:0 1px 2px rgba(22,32,46,.06),0 8px 24px rgba(22,32,46,.07);
+  --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E141C; --surface:#161F2A; --surface-2:#1E2936;
+    --ink:#E6ECF4; --ink-soft:#9DACC0; --ink-faint:#6E7E93;
+    --line:#26323F; --line-strong:#384656;
+    --accent:#6FB6D6; --accent-soft:#17303C;
+    --signal:#E0973F; --signal-soft:#33260F;
+    --good:#4FB784; --good-soft:#12301F;
+    --bad:#E0776C; --bad-soft:#331A17;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E141C; --surface:#161F2A; --surface-2:#1E2936;
+  --ink:#E6ECF4; --ink-soft:#9DACC0; --ink-faint:#6E7E93;
+  --line:#26323F; --line-strong:#384656;
+  --accent:#6FB6D6; --accent-soft:#17303C;
+  --signal:#E0973F; --signal-soft:#33260F;
+  --good:#4FB784; --good-soft:#12301F;
+  --bad:#E0776C; --bad-soft:#331A17;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden}
+.mono{font-family:var(--mono)}
+
+/* ---------- chrome ---------- */
+#bar{position:fixed;top:0;left:0;right:0;height:46px;display:flex;align-items:center;
+  gap:14px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line);z-index:40}
+#bar .brand{font-family:var(--serif);font-size:16px;letter-spacing:.01em;white-space:nowrap}
+#bar .brand b{font-weight:600}
+#bar .spacer{flex:1}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);
+  border-radius:4px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+.btn:hover{color:var(--ink);border-color:var(--line-strong)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#count{font-family:var(--mono);font-size:12px;color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+#rail{position:fixed;top:46px;left:0;height:2px;background:var(--accent);z-index:41;
+  transition:width .25s ease}
+
+/* ---------- slide track ---------- */
+#track{position:fixed;top:48px;bottom:0;left:0;right:0;display:flex;
+  transition:transform .32s cubic-bezier(.22,.61,.36,1);will-change:transform}
+.slide{flex:0 0 100vw;height:100%;overflow-y:auto;overflow-x:hidden;
+  padding:34px clamp(18px,5vw,64px) 60px}
+.inner{max-width:1080px;margin:0 auto}
+
+/* ---------- shared bits ---------- */
+.eyebrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border-radius:3px;border:1px solid var(--line-strong);color:var(--ink-soft)}
+.tag.lec{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.tag.rung{background:var(--signal-soft);border-color:transparent;color:var(--signal)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.2vw,46px);
+  line-height:1.12;margin:0 0 14px;text-wrap:balance;letter-spacing:-.01em}
+h2{font-family:var(--serif);font-weight:600;font-size:clamp(23px,3vw,33px);
+  line-height:1.18;margin:0 0 10px;text-wrap:balance;letter-spacing:-.005em}
+.model{font-family:var(--serif);font-style:italic;font-size:clamp(16px,2vw,20px);
+  color:var(--accent);margin:0 0 22px;max-width:62ch;line-height:1.45}
+p{margin:0 0 12px;max-width:68ch}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);
+  padding:1px 5px;border-radius:3px;color:var(--ink)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- concept card grid ---------- */
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));margin-top:6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:7px;
+  padding:16px 17px;box-shadow:var(--shadow)}
+.card h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  margin:0 0 9px;color:var(--ink-faint);font-weight:600}
+.card p{font-size:14.5px;line-height:1.55;margin:0;color:var(--ink-soft);max-width:none}
+.card strong{color:var(--ink);font-weight:600}
+.card.what{grid-column:1/-1}
+.card.what p{font-size:16px;color:var(--ink)}
+.card.adv{border-left:3px solid var(--good)}
+.card.adv h3{color:var(--good)}
+.card.dis{border-left:3px solid var(--bad)}
+.card.dis h3{color:var(--bad)}
+.card.use{border-left:3px solid var(--accent)}
+.card.use h3{color:var(--accent)}
+
+/* receipt strip */
+.receipt{margin-top:16px;background:var(--surface-2);border-left:3px solid var(--signal);
+  border-radius:0 6px 6px 0;padding:11px 15px;font-family:var(--mono);font-size:12.5px;
+  line-height:1.6;color:var(--ink-soft);overflow-x:auto}
+.receipt b{color:var(--signal);font-weight:600}
+
+/* ---------- lecture cover ---------- */
+.lead{font-size:clamp(16px,2vw,18.5px);color:var(--ink-soft);max-width:70ch;margin-bottom:20px}
+.lead b{color:var(--ink);font-weight:600}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:7px;
+  padding:16px;overflow-x:auto;box-shadow:var(--shadow)}
+.diagram .mermaid{min-width:520px}
+.caption{font-size:13.5px;color:var(--ink-faint);margin-top:10px;max-width:74ch;line-height:1.6}
+
+/* ---------- staff slide ---------- */
+.staff{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(285px,1fr))}
+.sbox{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:15px 17px;
+  box-shadow:var(--shadow)}
+.sbox h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  margin:0 0 8px;color:var(--signal);font-weight:600}
+.sbox p{font-size:14px;line-height:1.55;color:var(--ink-soft);margin:0;max-width:none}
+.sbox strong{color:var(--ink);font-weight:600}
+
+/* ---------- cover + ladder ---------- */
+.cover{display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 140px)}
+.cover .kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--signal);margin-bottom:18px}
+.rows{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.row{display:grid;grid-template-columns:62px 1fr;gap:16px;align-items:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:14px 16px;
+  box-shadow:var(--shadow)}
+.row .r{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--signal);
+  text-transform:uppercase;padding-top:3px}
+.row h4{margin:0 0 4px;font-size:15.5px;font-weight:600}
+.row p{margin:0;font-size:14px;color:var(--ink-soft);max-width:none}
+.keys{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+kbd{font-family:var(--mono);font-size:11.5px;background:var(--surface);border:1px solid var(--line-strong);
+  border-bottom-width:2px;border-radius:4px;padding:3px 7px;color:var(--ink-soft)}
+
+/* ---------- overview ---------- */
+#ov{position:fixed;inset:46px 0 0;background:var(--ground);z-index:35;overflow-y:auto;
+  padding:22px clamp(16px,4vw,44px) 60px;display:none}
+#ov.on{display:block}
+#ov h2{margin-bottom:6px}
+#ov .hint{font-size:14px;color:var(--ink-faint);margin-bottom:22px}
+.ovsec{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--signal);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.ovgrid{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}
+.thumb{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:12px 13px;cursor:pointer;box-shadow:var(--shadow);font:inherit;color:inherit;
+  display:flex;flex-direction:column;gap:5px;min-height:86px}
+.thumb:hover{border-color:var(--accent)}
+.thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.thumb .n{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-faint)}
+.thumb .t{font-family:var(--serif);font-size:15px;font-weight:600;line-height:1.25}
+.thumb .m{font-size:12px;color:var(--ink-soft);line-height:1.4}
+.thumb.is-lec{background:var(--accent-soft);border-color:transparent}
+.thumb.is-lec .t{color:var(--accent)}
+.thumb.is-staff{border-left:3px solid var(--signal)}
+
+/* ---------- nav arrows ---------- */
+.arrow{position:fixed;top:50%;transform:translateY(-50%);width:38px;height:56px;z-index:30;
+  background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;
+  border-radius:6px;font-size:17px;display:flex;align-items:center;justify-content:center}
+.arrow:hover{color:var(--ink);border-color:var(--line-strong)}
+.arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#prev{left:8px} #next{right:8px}
+@media (max-width:760px){.arrow{display:none}.slide{padding-top:26px}}
+@media (prefers-reduced-motion:reduce){#track{transition:none}#rail{transition:none}}
+</style>
+
+<div id="bar">
+  <div class="brand">Module 8 &middot; <b>Agentic AI Systems</b></div>
+  <div class="spacer"></div>
+  <span id="count" class="num">01 / 45</span>
+  <button class="btn" id="ovbtn" aria-label="Toggle overview">Overview</button>
+  <button class="btn" id="themebtn" aria-label="Toggle theme">Theme</button>
+</div>
+<div id="rail" style="width:0"></div>
+<div id="track"><section class="slide" id="s0"><div class="inner cover">
+<div class="kicker">Module 8 · Agentic AI Systems</div>
+<h1>Visual Study Deck</h1>
+<p class="lead">Seven lectures, twenty-nine concepts, distilled to one screen each. Every concept slide answers the same five questions — <b>what it is, why it exists, what it buys you, what it costs you, and when to reach for it</b> — backed by a real number from the notebook.</p>
+<p class="lead">Each lecture closes with a <b>staff-engineer slide</b>: where it breaks at scale, the latency and cost budget, the trade-off you are actually making, the failure modes that stay silent, and why an interviewer asks.</p>
+<div class="keys"><kbd>&larr;</kbd><kbd>&rarr;</kbd> navigate &nbsp; <kbd>O</kbd> overview &nbsp; <kbd>T</kbd> theme &nbsp; <kbd>Home</kbd> start</div>
+</div></section><section class="slide" id="s1"><div class="inner">
+<div class="eyebrow"><span class="tag">How to read this</span></div>
+<h1>Beginner to staff, in four rungs</h1>
+<p class="lead">The deck climbs deliberately. Rungs 1&ndash;3 are beginner-first — plain English, nothing assumed. Rung 4 switches to architect voice and is fenced into its own slide, after the beginner material has done its work. <b>Sequenced, never blended.</b></p>
+<div class="rows"><div class="row"><div class="r">Rung 1</div><div><h4>Name it</h4><p>You recognise the word and do not stall on it. <em>Lives in the Jargon Card.</em></p></div></div><div class="row"><div class="r">Rung 2</div><div><h4>Explain it</h4><p>You can say what it does, why it exists, and give an example. <em>The primers.</em></p></div></div><div class="row"><div class="r">Rung 3</div><div><h4>Use it</h4><p>You can run it, modify it, and predict what breaks. <em>Formulas, reading map, gotchas.</em></p></div></div><div class="row"><div class="r">Rung 4</div><div><h4>Judge it</h4><p>You can reason about trade-offs, failure modes and budgets — and defend the choice under interview pressure. <em>The staff-engineer lens.</em></p></div></div></div>
+<p class="lead" style="margin-top:22px">Skimming? Press <kbd>O</kbd> for the contact sheet and jump straight to any concept. Every slide stands alone.</p>
+</div></section><section class="slide" id="s2"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 6</span><span class="tag">Overview</span></div>
+<h1>Multi-Agent Systems: Patterns &amp; Orchestration</h1>
+<p class="lead">Eight ordinary Python functions, one shared dictionary, and twenty lines of wiring. A supervisor turns free text into structured fields; four specialists fan out to live APIs; cost, itinerary and final agents synthesise. <b>There is no magic.</b></p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  S([START])--&gt;SUP["supervisor&lt;br/&gt;Gemini: text to JSON"]
+  SUP--&gt;FL["flight_agent&lt;br/&gt;Aviationstack"]
+  SUP--&gt;HO["hotel_agent&lt;br/&gt;Tavily"]
+  SUP--&gt;NE["news_agent"]
+  SUP--&gt;WE["weather_agent&lt;br/&gt;geocode then forecast"]
+  FL--&gt;CO["cost_agent&lt;br/&gt;Tavily + Gemini"]
+  HO--&gt;CO
+  FL--&gt;IT["itinerary_agent"]
+  HO--&gt;IT
+  NE--&gt;IT
+  WE--&gt;IT
+  CO--&gt;IT
+  IT--&gt;FI["final_agent"]
+  FI--&gt;E([END])</pre></div>
+<p class="caption">Every arrow is really "write to shared state, then let the next node read it" — no two specialists ever talk directly. <code>cost_agent</code> waits on two inputs, <code>itinerary_agent</code> on five, and that uneven fan-in is why the final agent runs twice.</p>
+</div></section><section class="slide" id="s3"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L6 · Multi-Agent Systems</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Shared state</h2>
+<p class="model">A whiteboard in the middle of the office. Nobody passes notes; everybody reads and writes the board.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>One <code>TypedDict</code> (<code>TravelState</code>) that every node reads from and writes into. A node returns <strong>only the keys it changed</strong> — <code>{"flights": {...}}</code> — and LangGraph merges that fragment in.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Agents need to share results without knowing about each other. A shared dictionary is the simplest channel that lets you add a ninth agent without touching the other eight.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Each node stays ignorant of every other node’s keys, so you can <strong>unit-test one agent</strong> against a two-key dictionary. Adding an agent is additive, never a refactor.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><code>total=False</code> makes every key optional, so missing data is invisible. <code>TypedDict</code> is documentation only — Python never enforces it, and an undeclared key fails silently downstream.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Any pipeline where several steps contribute different slices of one result: enrichment pipelines, ETL fan-out, multi-source research agents.</p></div>
+</div>
+<div class="receipt">Test <b>cell 15</b> runs <code>hotel_agent</code> against just <code>{"destination": "Manali", "days": 5}</code> — the whole agent needs two keys.</div>
+</div></section><section class="slide" id="s4"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L6 · Multi-Agent Systems</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Nodes and edges</h2>
+<p class="model">A subway map. Stations are nodes, lines are edges, and your request can only travel where a line exists.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><code>add_node(name, fn)</code> registers a worker. <code>add_edge(a, b)</code> says "after a, b may run". <code>compile()</code> freezes the description into an executable graph.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>It separates <strong>what each worker does</strong> from <strong>when it runs</strong>. Reorder the pipeline by editing edges; the agent functions never change.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>All orchestration for this 32-cell notebook lives in ~20 lines. Fan-out is free parallelism, the graph renders as a picture, and the dependency structure is inspectable before you run it.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><code>compile()</code> snapshots the graph — edit a node, forget to recompile, and you silently run the old one. Uneven fan-in depth can schedule a downstream node more than once.</p></div>
+  <div class="card use"><h3>Use case</h3><p>When the dependency structure is <strong>known and fixed</strong>. If the required steps vary per request, LLM tool-calling fits better.</p></div>
+</div>
+<div class="receipt">Output shows <b>🎯 FINAL AGENT STARTED</b> printed <b>twice</b> — uneven fan-in across supersteps, billing the largest prompt twice.</div>
+</div></section><section class="slide" id="s5"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L6 · Multi-Agent Systems</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Grounding</h2>
+<p class="model">An open-book exam where the invigilator adds: if it is not in the book, write "not available".</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Paste live API results into the prompt and add explicit rules. The itinerary prompt carries seven: <em>do not invent live facts; do not claim a flight is bookable; clearly mark estimates…</em></p></div>
+  <div class="card"><h3>Why it exists</h3><p>A fluent model will happily invent a plausible flight number. Grounding converts "sounds right" into "supported by retrieved evidence, or declared absent".</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Turns the biggest LLM risk into a manageable one. The cost agent’s JSON shape even forces <code>assumptions</code> and <code>source_notes</code> arrays, so the reasoning is auditable.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Costs prompt tokens on every call, and rules are advisory — a model can still drift. It also can’t detect <strong>stale</strong> data: nothing here timestamps the API responses.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Any user-facing system quoting prices, availability, medical or legal facts — anywhere a confident wrong answer is worse than "I don’t know".</p></div>
+</div>
+<div class="receipt">Aviationstack returned flights to Patna, Leh, Mumbai, Varanasi. Final answer: <b>"no direct flights"</b> from DEL to Kullu — and recommends road transit instead.</div>
+</div></section><section class="slide" id="s6"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L6 · Multi-Agent Systems</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>API-only vs LLM-backed agents</h2>
+<p class="model">Researchers and writers. Don’t pay a writer’s price for a researcher’s job.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Four agents (flight, hotel, news, weather) make <strong>zero</strong> LLM calls — they are <code>requests.get()</code> with error handling. Four (supervisor, cost, itinerary, final) call Gemini.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>LLM calls cost money, add seconds of latency, and can hallucinate. Use them only where <strong>judgement or language</strong> is required — never for fetching.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Cuts cost and latency sharply, and the deterministic agents are trivially testable. The four API agents share no data, so they overlap in one superstep.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Requires you to classify each step correctly up front. And one "agent" may be several HTTP calls — the weather agent geocodes, then fetches — so the boundary is responsibility, not requests.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Every agent pipeline. Ask of each node: does this need judgement, or just data? Only the first kind earns a model call.</p></div>
+</div>
+<div class="receipt">Weather agent: geocode <code>"Manali"</code> → <b>(32.2455, 77.1873)</b>, then fetch forecast. Two calls, one responsibility.</div>
+</div></section><section class="slide" id="s7"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L6 · Multi-Agent Systems</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>Multi-Agent Orchestration &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong>Third-party rate limits run out before compute.</strong> One request fans out to five APIs; 100 concurrent requests is 500 external calls, and Aviationstack’s free tier caps in the hundreds <em>per month</em>. No retry, no backoff, no per-node timeout.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p>Wall clock ≈ supervisor + max(4 research) + cost + itinerary + final. <strong>Token cost is dominated by the last two calls</strong>, which paste the entire accumulated state — and one of them is billed twice.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>You are buying <strong>per-step debuggability and parallelism</strong> by paying orchestration complexity and extra LLM calls. The alternative — one call with five registered tools — is simpler and cheaper but untestable per step.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>Ranked by quietness: stale data presented as live → <code>state.get("days", 1)</code> silently defaulting → duplicate node execution → empty IATA silently widening the query.</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>whether you think in dependency graphs or scripts</strong>. The follow-up is always partial failure: "the hotel API is down — what does the user see?" Today: the run dies.</p></div>
+</div>
+</div></section><section class="slide" id="s8"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 7</span><span class="tag">Overview</span></div>
+<h1>CrewAI &amp; Microsoft AutoGen Frameworks</h1>
+<p class="lead">An agent is an LLM call wrapped with a name, a system message, and a way to send and receive messages. A <b>multi-agent system</b> is several of those sharing messages under simple, explicit rules. Five FinTrack analysts debate a launch — all built from the <b>same</b> config, differing only in system message.</p>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant PM as Product_Manager
+  participant MGR as GroupChatManager
+  participant MA as Market_Analyst
+  participant SA as Security_Analyst
+  participant FA as Finance_Analyst
+  PM-&gt;&gt;MGR: should we launch?
+  MGR-&gt;&gt;MA: your turn + FULL history
+  MA--&gt;&gt;MGR: adoption depends on accuracy
+  MGR-&gt;&gt;SA: your turn + FULL history
+  SA--&gt;&gt;MGR: rebuts: receipts carry financial PII
+  MGR-&gt;&gt;FA: your turn + FULL history
+  FA--&gt;&gt;MGR: pilot, not full launch
+  MGR-&gt;&gt;PM: summarise + recommend
+  Note over MGR: stops at max_round = 11</pre></div>
+<p class="caption">Every arrow into an agent carries the <strong>entire</strong> conversation so far — that shared history is the only mechanism letting the Security Analyst rebut a claim made two turns earlier. The manager contributes no content; it only decides whose turn is next.</p>
+</div></section><section class="slide" id="s9"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L7 · CrewAI & AutoGen</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>The agent is its system message</h2>
+<p class="model">Five identical actors, five different scripts.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Every analyst is <code>AssistantAgent(name, system_message, llm_config)</code>. Same model, same settings — the <strong>system message alone</strong> produces the personality, responsibilities and stance.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>You need genuinely different perspectives without building five different systems. The system message is the cheapest possible specialisation mechanism.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Adding a sixth analyst is one object. Each message carries role + responsibilities + <strong>stance</strong> — and stance is what stops five agents politely agreeing.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Personality is only as reliable as prompt adherence; a model can drift out of role. And length discipline must be enforced manually in every message.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Design review panels, red-team vs blue-team analysis, any decision needing deliberately opposed viewpoints.</p></div>
+</div>
+<div class="receipt">Product Manager is told <b>"Do NOT simply agree with everyone"</b>; every message ends <b>"Keep every message to 2-4 sentences"</b> — a context-budget control, not style.</div>
+</div></section><section class="slide" id="s10"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L7 · CrewAI & AutoGen</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Tool calling vs code execution</h2>
+<p class="model">A vending machine versus a kitchen. Fixed buttons, or cook anything.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>Tool calling:</strong> pre-register one safe function with two decorators — <code>register_for_llm</code> advertises it, <code>register_for_execution</code> runs it. <strong>Code execution:</strong> the model writes Python and a <code>LocalCommandLineCodeExecutor</code> runs it as a subprocess.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>LLMs are unreliable at exact arithmetic, lookups and queries. Hand that work to real code and the answer stops being a guess.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Tool calling gives a tiny, audited attack surface and exact results. Code execution handles problems you can’t express as one predefined function.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Register only one decorator and the tool is either never called or never executed. Code execution is <strong>arbitrary code on your machine</strong> — fine in a disposable Colab VM, unshippable as a service.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Tool calling for maths, DB lookups, pricing, API calls. Code execution for open-ended data manipulation — behind a real sandbox.</p></div>
+</div>
+<div class="receipt">Gemini emits <code>calculate_roi(revenue=150000, cost=50000)</code> → <b>(150000−50000)/50000×100 = 200.0%</b>. Exact, not predicted.</div>
+</div></section><section class="slide" id="s11"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L7 · CrewAI & AutoGen</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Reflection</h2>
+<p class="model">A first draft, a red pen, and a rewrite.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Three calls with different system messages: Writer drafts, Critic names what’s missing (privacy, accuracy, cost), Writer rewrites given <strong>both</strong> its draft and the critique.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>First drafts are confident and incomplete. A separate critique pass surfaces the omissions the drafting pass is blind to.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>No framework feature needed — three ordinary calls and an f-string. The revised output is visibly more hedged and more complete.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>3× the cost and 3× the latency</strong> of a single answer. A same-model critic shares the generator’s blind spots, so it catches slips and misses systematic errors.</p></div>
+  <div class="card use"><h3>Use case</h3><p>When quality matters more than latency: generated code, customer-facing copy, anything reviewed before it ships.</p></div>
+</div>
+<div class="receipt">Compare DRAFT vs REVISED in cells 20-22 — the revision addresses privacy and accuracy the confident one-liner ignored.</div>
+</div></section><section class="slide" id="s12"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L7 · CrewAI & AutoGen</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>GroupChat</h2>
+<p class="model">A whiteboard nobody is allowed to erase.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><code>GroupChat(agents, messages, max_round=11, speaker_selection_method="round_robin")</code> plus a <code>GroupChatManager</code>. A shared message history and a turn-taking rule — that is the whole mechanism.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>One-on-one chats are isolated pairs; no agent can react to what another said. Shared history is what converts parallel monologues into an argument.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Every agent sees everything, so they genuinely agree, disagree and build on each other. <code>round_robin</code> is reproducible — ideal for demos and tests.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Token cost grows <strong>quadratically</strong> (O(A·R²)) because every round resends the full history. Latency is fully serial. <code>max_round</code> stops on a turn count, so it can cut off mid-argument.</p></div>
+  <div class="card use"><h3>Use case</h3><p>High-stakes decisions warranting adversarial review. For a low-stakes summary, one well-prompted call is the right call.</p></div>
+</div>
+<div class="receipt">5 agents × <b>max_round=11</b> ≈ <b>11×</b> the calls of a single agent — and each call carries a larger prompt than the last.</div>
+</div></section><section class="slide" id="s13"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L7 · CrewAI & AutoGen</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>AutoGen Multi-Agent &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong>Context window, quadratically.</strong> With A agents over R rounds you send O(A·R²) tokens. The failure is quiet — the model truncates or loses the middle of a long prompt rather than erroring. The "2-4 sentences" rule is a context-budget control.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p>GroupChat is ~11× a single agent on call count <em>and</em> priciest per call. Round-robin means <strong>no two agents ever generate concurrently</strong> — wall clock is the sum of 11 completions, though the four analysts have no data dependency in round 1 and could be fanned out.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>You are buying <strong>genuine multi-perspective disagreement</strong> by paying quadratic tokens and serial latency. One call prompted to "consider four angles" costs a tenth — but a single model self-critiquing converges on one voice.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>Manufactured consensus (defended against explicitly here) → silent context truncation → <code>max_round</code> hit mid-argument → substring control flow like <code>"DONE" in content</code> matching "I’m not DONE yet".</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>whether you can justify the agent count</strong>. Start from one call and make each extra agent earn its 2-4× cost. The staff follow-up is always: "what stops it?"</p></div>
+</div>
+</div></section><section class="slide" id="s14"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 8</span><span class="tag">Overview</span></div>
+<h1>Advanced Agent Patterns: ReAct, Reflection &amp; Memory</h1>
+<p class="lead">Three patterns that turn a chatbot into an agent: <b>ReAct</b> lets it act, <b>Reflection</b> lets it self-correct, <b>Memory</b> lets it persist. ReAct is the star — asked to reorder a cancelled order, the agent discovers <code>Status: Cancelled</code> and reports it. Nobody wrote that branch.</p>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; Thought: user query
+  Thought --&gt; Action: emit tool_calls
+  Action --&gt; Observation: ToolMessage returns
+  Observation --&gt; Thought: enough info?
+  Thought --&gt; Answer: yes
+  Answer --&gt; [*]</pre></div>
+<p class="caption">The arrow from <strong>Observation back to Thought</strong> is what separates ReAct from planning: the agent re-decides <em>after seeing what actually returned</em>, rather than executing a plan written up front. Adaptability comes from observing after every action, not from planning better.</p>
+</div></section><section class="slide" id="s15"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L8 · ReAct, Reflection & Memory</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>The ReAct loop</h2>
+<p class="model">A detective. Form a hunch, check one fact, let the fact change the hunch.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>Thought</strong> (reason about what’s needed) → <strong>Action</strong> (call a tool) → <strong>Observation</strong> (read the result) → repeat until it can answer. In LangGraph: an <code>AIMessage</code> with <code>tool_calls</code>, then a <code>ToolMessage</code>.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Chain-of-Thought can’t touch external data; Plan-and-Solve commits to a plan before seeing any results. ReAct adapts after every single step.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Strongest error recovery of the three patterns. Handles branches nobody coded — cancelled orders, out-of-stock items, missing records.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>Latency is serial in turns</strong> and the step count is unbounded without a cap. Every step resends the full history, so long loops silently blow the context window.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Open-ended research, customer support over live systems, debugging — anywhere the next step genuinely depends on what came back.</p></div>
+</div>
+<div class="receipt">Query 3 makes <b>4 tool calls</b> — it cannot know to look up "Noise Cancelling Headphones" until <code>lookup_order("1003")</code> returns.</div>
+</div></section><section class="slide" id="s16"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L8 · ReAct, Reflection & Memory</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Tools — the docstring is the interface</h2>
+<p class="model">A job advert. The model only applies for tools whose advert describes its problem.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><code>@tool</code> turns a plain function into something the LLM can call, and <strong>the docstring becomes the description the model reads</strong>. All three here follow: what it does → what it returns → <em>when to use it</em>.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Tool selection is a reading-comprehension task. The docstring is the entire brief the model gets, so a vague one is a broken tool.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Zero ceremony — a decorator and a good docstring. Tools returning helpful <strong>error strings</strong> (not exceptions) let the agent recover instead of crashing the loop.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>All descriptions sit in the prompt on <strong>every</strong> iteration, so 40 tools consume the budget repeatedly and selection accuracy falls — silently, as plausible-but-wrong picks.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Every tool you ever write. At scale, retrieve the top-5 relevant tools per query instead of listing all of them.</p></div>
+</div>
+<div class="receipt"><code>lookup_order("9999")</code> returns <b>"Error: No order found… Valid order IDs are: [...]"</b> — text the agent can read and recover from.</div>
+</div></section><section class="slide" id="s17"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L8 · ReAct, Reflection & Memory</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Reflection: generate → judge → revise</h2>
+<p class="model">Submitting code for review, then pushing a fix.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Three one-line functions wrapping the same model with different system messages, looping up to <code>max_iterations=3</code>, exiting early when the critique contains <code>LGTM</code>.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>A generator optimises for producing something; a judge optimises for finding what’s wrong. Splitting the roles surfaces problems one pass misses.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Returns a full history plus <code>approved: True/False</code>, so callers can distinguish "the judge signed off" from "we ran out of attempts". Cell 38 even <code>exec</code>s the result and unit-tests it.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Up to <strong>7 calls</strong> for one answer. <code>"LGTM" in critique</code> would accept "this is not LGTM yet". <strong>Architecture 1</strong> (same model judging itself) is blind to its own systematic errors.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Generated code, structured extraction, anything with a checkable spec. Use a <strong>separate, stronger</strong> judge model when the stakes justify it.</p></div>
+</div>
+<div class="receipt">In this run the judge replied <b>LGTM.</b> at iteration 1 — so the revise path <b>never executed</b>. You saw the structure, not the payoff.</div>
+</div></section><section class="slide" id="s18"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L8 · ReAct, Reflection & Memory</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Three types of memory</h2>
+<p class="model">What’s on your desk, what you remember about this colleague, and the company wiki.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>Short-term</strong> = the current prompt/context window. <strong>Episodic</strong> = conversation history across sessions (last 10 turns). <strong>Long-term</strong> = a persistent vector store searched by embedding similarity.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Context windows are finite and sessions end. Without the other two, an agent starts every conversation as a stranger.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Retrieval (<code>top_k=3</code>, similarity &gt; 0.5) compresses an unbounded store into a prompt-sized slice, so the agent can "remember" far more than it can hold.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Taught as <strong>pseudocode only</strong> — nothing runs here. Retrieval recall becomes the hard ceiling on what can ever be recalled, and stale memories are never invalidated.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Personal assistants, long-running support threads, any agent expected to improve across sessions rather than restart cold.</p></div>
+</div>
+<div class="receipt">The key insight: <b>retrieval turns long-term memory into short-term memory</b>. The store is huge; the window is not.</div>
+</div></section><section class="slide" id="s19"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L8 · ReAct, Reflection & Memory</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>ReAct, Reflection &amp; Memory &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong>Unbounded steps, each resending everything.</strong> Query 3’s fourth request carries all three prior observations; with verbose tool outputs a ten-step loop hits the window and the model starts ignoring early observations rather than erroring. Tool count is the second limit — 30 tools degrade selection.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p>Every step is a full model round trip; the tools here are dictionary lookups costing microseconds. <strong>The model dominates, the tools are free</strong> — optimising the tool is optimising the wrong thing. Reflection multiplies: <code>max_iterations=3</code> is up to 7 calls.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>ReAct buys <strong>adaptability</strong> by paying serial latency and an unpredictable bill. Plan-and-Solve gives you a known cost and concurrent dispatch but cannot recover when step 2 surprises it. Mature answer: plan when the structure is knowable, react when it isn’t.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>Substring control flow shipping unreviewed code → self-review blindness → silent context truncation → loop exhaustion read as success → <code>exec()</code> on model output.</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>whether you know where the loop terminates</strong>. The staff probe: "your judge approved first try — is the code good?" Recognising an unexercised branch as a risk is the judgement being tested.</p></div>
+</div>
+</div></section><section class="slide" id="s20"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 9</span><span class="tag">Overview</span></div>
+<h1>Browser Automation &amp; Web Agents</h1>
+<p class="lead">Playwright gives an agent <b>eyes and hands</b>. browser-use gives it a <b>chauffeur who can read road signs</b>. After demoing the full autonomous agent, the notebook quietly goes back to deterministic scraping plus one structuring call — because once you know the page, autonomy is the expensive option.</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  subgraph AG["Full agent (browser-use)"]
+    A1[Task in English]--&gt;A2[Serialize DOM to numbered list]
+    A2--&gt;A3["LLM: click element 7"]
+    A3--&gt;A4[Playwright acts + auto-waits]
+    A4--&gt;A2
+    A4--&gt;|max_steps=8|A5[Free-text result]
+  end
+  subgraph SC["Scrape + structure"]
+    B1[Known selectors]--&gt;B2["Playwright: tr.athing"]
+    B2--&gt;B3["424 points by ... 292 comments"]
+    B3--&gt;B4[ONE Groq call, strict JSON]
+    B4--&gt;B5[Pydantic-validated objects]
+  end</pre></div>
+<p class="caption">The left path has a <strong>cycle</strong> — every trip round it is another LLM call, which is where its cost and non-determinism both come from. The right path is a straight line with one model call, at the only step needing judgement: parsing messy text into typed fields.</p>
+</div></section><section class="slide" id="s21"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L9 · Browser Automation</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Browser → Context → Page</h2>
+<p class="model">The Chrome process, an incognito window, a tab.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>Browser</strong> = the whole process (expensive; start once). <strong>Context</strong> = an isolated window with its own cookies, storage and identity (cheap). <strong>Page</strong> = one tab inside a context.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>You need many simultaneous identities without paying for many browsers. The context is the layer that makes that possible.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Five contexts in one process = five logged-in identities in parallel with <strong>no cookie bleed</strong>. This is Playwright’s whole parallelism story.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Get the layer wrong and you OOM at trivial concurrency — a browser is 100-300 MB resident, a context only tens. Pages inside one context <strong>share cookies</strong>, silently breaking isolation.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Any multi-account scraping, parallel test suites, or per-user automation. Set <code>storage_state</code> and <code>user_agent</code> on the <strong>context</strong>.</p></div>
+</div>
+<div class="receipt">4 GB box, 12 logged-in sessions → <b>1 browser + 12 contexts</b>. Twelve browsers OOMs; twelve pages shares one cookie jar.</div>
+</div></section><section class="slide" id="s22"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L9 · Browser Automation</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Locators &amp; auto-wait</h2>
+<p class="model">"The blue Login button" survives a redesign; "third div, second span" does not.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Stability ranking: <strong>role → text/label → data-testid → CSS class → XPath</strong>. Before any click Playwright checks five things — attached, visible, stable, receiving events, enabled — retrying until they pass or the 30 s timeout expires.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Modern class names are build-generated hashes that change every deploy, and modern pages render asynchronously. Both break naive automation.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Auto-wait means <strong>the LLM never reasons about page-load timing</strong> — it just says "click element 7". Role locators match how a human (and an LLM reading the accessibility tree) describes a page.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Auto-wait can mask a genuinely missing element until the timeout. <code>networkidle</code> is a trap — commercial sites never idle, so it times out or returns early.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Prefer <code>get_by_role</code> everywhere. When you need explicit control, wait on a <strong>specific</strong> selector or URL pattern — never on network quiet.</p></div>
+</div>
+<div class="receipt">Infinite scroll: 8 iterations × 1.2 s wait, stop when the count stops changing → <b>50 quotes</b> loaded. The cap is not optional.</div>
+</div></section><section class="slide" id="s23"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L9 · Browser Automation</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Authentication patterns</h2>
+<p class="model">The "Remember me on this device" checkbox.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>Pattern 1 — <code>storage_state</code>:</strong> log in once by hand, save cookies + localStorage to JSON, reload it on every later run. <strong>Pattern 2 — programmatic login:</strong> fill the form in code, then save the state anyway.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Logging in from scratch every run is slow, trips anti-bot heuristics, and may trigger 2FA you cannot automate past.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>You start already authenticated, at zero cost per run. Combining both patterns gives you rotation <em>and</em> reuse.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>That JSON file is a live credential</strong> — anyone holding it can act as you, no password needed. At scale it becomes a secrets-management problem with rotation and audit.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Pattern 1 for a stable personal/service account. Pattern 2 for rotating accounts or fresh onboarding flows.</p></div>
+</div>
+<div class="receipt"><code>.gitignore</code> it, encrypt it in production. Leak means <b>account takeover</b>, not a data breach.</div>
+</div></section><section class="slide" id="s24"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L9 · Browser Automation</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>How the LLM sees a page</h2>
+<p class="model">A numbered menu, not a wall of HTML.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>DOM mode (default):</strong> walk the DOM, drop invisible elements, emit a numbered list — <code>[1]&lt;button&gt;Sign in&lt;/button&gt;</code>. <strong>Vision mode:</strong> screenshot with numbered bounding boxes, sent to a vision model.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Raw HTML is enormous and mostly irrelevant. A numbered list of interactive elements is the smallest representation that supports a decision.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>DOM mode is fast, token-cheap and <strong>works with text-only models</strong>. The constrained action space means the model cannot hallucinate a CSS selector — its only options are numbers it was just shown.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>DOM mode is blind to visually-encoded meaning (charts, canvas apps). Vision mode costs <strong>thousands of image tokens per step</strong>, multiplied across the whole loop.</p></div>
+  <div class="card use"><h3>Use case</h3><p>DOM mode by default. Vision only for visually complex apps — Canva, Figma — where the DOM is uninformative.</p></div>
+</div>
+<div class="receipt"><code>use_vision=False</code> here because Groq’s <code>openai/gpt-oss-120b</code> is text-only.</div>
+</div></section><section class="slide" id="s25"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L9 · Browser Automation</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>Browser Automation &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong>Memory runs out fast</strong> — a Chromium process is 100-300 MB before loading anything, so a 4 GB worker runs ~10-20 contexts and <em>one</em> browser. The harder limit is the target site: rate limits, CAPTCHAs and IP bans arrive long before your CPU does.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p>Agent path: 1 LLM call per step × <code>max_steps=8</code>, serial. Scrape path: <strong>exactly 1</strong> call. Roughly an order of magnitude apart. Browser startup is the fixed floor on both — launch once, reuse contexts.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>The agent buys <strong>tolerance of unknown, changing pages</strong> by paying ~10× cost, high latency and non-determinism. The decision rule is <em>change frequency</em>, not difficulty: automate deterministically when the page is stable and you run it repeatedly.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>All silent: selector rot returning zero rows as "success" → partial page capture → agent hitting <code>max_steps</code> and returning a plausible partial answer → session expiry scraping the logged-out page.</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>whether you reach for the heaviest tool first</strong>. API? Static HTML? Only then a browser. The staff probe is maintenance: "this runs nightly for two years — what breaks?" Answer: assert on expected row count.</p></div>
+</div>
+</div></section><section class="slide" id="s26"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 10</span><span class="tag">Overview</span></div>
+<h1>LlamaIndex &amp; Advanced RAG Frameworks</h1>
+<p class="lead">A working RAG pipeline is <b>five lines</b>. Everything after that is choosing the <b>right kind of index</b> for the question you are asking — and this notebook builds four over the same documents, letting each one visibly succeed <i>and</i> visibly fail.</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  D["data/*.txt"]--&gt;R[SimpleDirectoryReader]
+  R--&gt;N["SentenceSplitter&lt;br/&gt;512 / overlap 50"]
+  N--&gt;V["VectorStoreIndex&lt;br/&gt;similarity"]
+  N--&gt;T["TreeIndex&lt;br/&gt;LLM summaries"]
+  N--&gt;K["KeywordTableIndex&lt;br/&gt;exact terms"]
+  N--&gt;G["KnowledgeGraphIndex&lt;br/&gt;LLM triplets"]
+  V--&gt;QE["as_query_engine()"]
+  T--&gt;QE
+  K--&gt;QE
+  G--&gt;QE
+  Q[user question]--&gt;QE
+  QE--&gt;P["prompt = question + context"]
+  P--&gt;L[Groq gpt-oss-120b]
+  L--&gt;A["answer + source_nodes"]</pre></div>
+<p class="caption">Everything left of <code>as_query_engine()</code> happens <strong>once, at build time</strong>; everything right of it happens <strong>per question</strong>. The four branches consume the same nodes and differ only in how they organise them — which is why you can build several and route between them.</p>
+</div></section><section class="slide" id="s27"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L10 · LlamaIndex & RAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>The RAG pipeline</h2>
+<p class="model">An open-book exam where a research assistant finds the right pages before you start writing.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Documents → chunks (nodes) → embeddings → index → query engine. At question time: embed the question, retrieve the nearest chunks, paste them into the prompt, generate.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>An LLM’s knowledge is frozen at training time and has never seen your internal documents. RAG fixes both by supplying the relevant text at question time.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Each stage is one object you can swap. Embeddings run <strong>locally on CPU</strong> here, so embedding is free and no document text leaves the machine — cheap <em>and</em> data-residency compliant.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Nothing updates. A changed policy means rebuilding the whole index, and at scale that becomes a change-data-capture problem rather than a notebook cell.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Internal documentation Q&A, support knowledge bases, policy lookup — any corpus the model was never trained on.</p></div>
+</div>
+<div class="receipt">The debugging habit: <b>read <code>response.source_nodes</code> first</b>. Right chunks + wrong answer = generation bug. Wrong chunks = retrieval bug.</div>
+</div></section><section class="slide" id="s28"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L10 · LlamaIndex & RAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Chunking</h2>
+<p class="model">Tearing a book into index cards. Too small loses context; too big matches nothing sharply.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><code>SentenceSplitter(chunk_size=512, chunk_overlap=50)</code> cuts on sentence boundaries at ~512 characters, repeating the last 50 characters of each chunk at the start of the next.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Chunks are the <strong>atoms of retrieval</strong>. If an answer spans three chunks, no amount of clever retrieval reassembles it.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Overlap stops a fact stated across a boundary from being lost to both chunks — a little storage buys robustness at the seams.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>The highest-leverage knob and the least principled one: there is no defensible way to pick 512 and 50 except <strong>measuring against a labelled eval set</strong>. Get it wrong and everything downstream inherits the damage.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Tune per corpus. Dense policy text wants smaller chunks; narrative documents want larger ones with more overlap.</p></div>
+</div>
+<div class="receipt">A 1,200-character document yields ≈ 1200 ÷ (512−50) ≈ <b>3 chunks</b>, each sharing a 50-character seam.</div>
+</div></section><section class="slide" id="s29"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L10 · LlamaIndex & RAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Four index types</h2>
+<p class="model">Four librarians. Each is brilliant at one request and useless at another.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><strong>Vector</strong> groups by meaning. <strong>Tree</strong> summarises bottom-up. <strong>Keyword</strong> indexes exact terms. <strong>Graph</strong> tracks who relates to whom, via LLM-extracted triplets.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>There is no universal index. Each organises the same chunks around a different question shape, and the shape of your questions decides which you need.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Build several over one corpus and route between them. Vector is cheap to build; keyword is instant for identifiers; graph answers relationship questions nothing else can.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Tree summarises the detail away. Keyword has <strong>no notion of "close enough"</strong>. Graph costs <strong>one LLM call per chunk</strong> to build — economically absurd on a large corpus.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Vector as default; keyword alongside it for IDs and acronyms; tree for "summarise everything"; graph only when relationship questions are a recurring workload.</p></div>
+</div>
+<div class="receipt">Keyword index asked about <b>"reward points"</b> → <b>Empty Response</b>. The document says "loyalty points". Exact match has no synonyms.</div>
+</div></section><section class="slide" id="s30"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L10 · LlamaIndex & RAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>QueryEngineTool — the hinge to agentic RAG</h2>
+<p class="model">A receptionist with a directory of specialists.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Wrap each query engine as a tool with a <code>name</code> and a <code>description</code>. A planner LLM then decides <strong>which knowledge source answers which part</strong> of a compound question.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Once you have several corpora or several index types, something must route. Encoding each engine’s competence as a description makes routing an LLM-readable decision.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>The planner needs no knowledge of the underlying index — only what each tool is good at. This is precisely the step from "RAG pipeline" to "agent with retrieval tools".</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>The description is the only thing the router reads</strong>, so routing quality is entirely prompt quality. Overlapping descriptions produce confidently wrong routing, silently.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Multi-domain assistants: Tesla docs vs Netflix docs vs OpenAI docs; or policy vs incidents vs code within one company.</p></div>
+</div>
+<div class="receipt">The notebook states the rule plainly: <b>"Good tool descriptions improve tool selection."</b> That is the whole lever.</div>
+</div></section><section class="slide" id="s31"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L10 · LlamaIndex & RAG</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>LlamaIndex &amp; RAG &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong><code>SimpleVectorStore</code> is a Python list scanned linearly</strong> — O(N) per query, entirely in RAM, lost on restart. Replaced by an ANN index (HNSW/FAISS/Chroma/pgvector) through <code>StorageContext</code>. <code>KnowledgeGraphIndex</code> breaks sooner: one LLM call per chunk, non-incremental.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p>Build-time and query-time have different shapes. Embedding is <strong>free</strong> (local CPU BGE, 133 MB). Query latency is dominated by the single Groq completion, not retrieval — so chasing retrieval speed on a small corpus optimises the wrong thing.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>A local small embedding model buys <strong>zero marginal cost and data residency</strong> by paying retrieval quality — <code>bge-small</code> is 384-dim and English-only. The deeper trade is the index choice itself: you are choosing which question shape to be good at.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>Garbage corpus → garbage chunks (demonstrated here by accident) → stale index answering from last month’s policy → <code>Settings</code> drift after construction → <code>Empty Response</code> misread as "no such policy".</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>whether you debug retrieval or blame the model</strong>. Reaching for <code>source_nodes</code> first — and splitting the bug into retrieval vs generation — is the clearest signal of having operated a RAG system.</p></div>
+</div>
+</div></section><section class="slide" id="s32"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 11</span><span class="tag">Overview</span></div>
+<h1>Agentic RAG &amp; GraphRAG</h1>
+<p class="lead">One question breaks plain RAG: <i>"which engineering managers have team members working on projects involving LLM security?"</i> Vector search returns the right documents (0.589 / 0.522 / 0.448) and <b>still cannot answer</b> — because the answer is a path, not a passage.</p>
+<div class="diagram"><pre class="mermaid">flowchart LR
+  DOC["Guardrail Overview&lt;br/&gt;cosine 0.589"]--&gt;|ABOUT|PRJ[Project Guardrail]
+  ANA[Ana Iyer]--&gt;|WORKS_ON|PRJ
+  FAT[Fatima Zahra]--&gt;|WORKS_ON|PRJ
+  ANA--&gt;|REPORTS_TO|ELE["Elena Duarte&lt;br/&gt;is_engineering = 1"]
+  FAT--&gt;|REPORTS_TO|ELE
+  BEN[Ben Cho]--&gt;|WORKS_ON|SEN[Project Sentinel]
+  BEN--&gt;|REPORTS_TO|SOF["Sofia Klein&lt;br/&gt;is_engineering = 0"]</pre></div>
+<p class="caption">Vector search gets you as far as the leftmost box and stops — there is no edge inside an embedding to follow from a document to the people who work on it. <strong>Elena is the answer; Sofia is the trap</strong> — she manages people on these very projects, and only the <code>is_engineering = 0</code> property excludes her.</p>
+</div></section><section class="slide" id="s33"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L11 · Agentic RAG & GraphRAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Why traditional RAG fails</h2>
+<p class="model">A library catalogue finds books about a topic; it cannot tell you who reports to whom.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>RAG works when the answer is <strong>already written somewhere</strong>. It struggles when the answer must be computed by <strong>joining, filtering, traversing and aggregating</strong>.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Those four verbs are your diagnostic checklist — run them against a question <em>before</em> choosing an architecture, not after the retriever disappoints.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Gives you a one-line test. "What does Guardrail do?" needs none of the four → RAG is fine. "Which engineering managers…?" needs traverse + filter → you need a graph.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>The failure is deeply counter-intuitive because retrieval <strong>succeeds</strong> — the top-3 are all genuinely about LLM security. A working retriever can still be the wrong tool.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Apply before every RAG project. If any of the four verbs appear, plan for a second retrieval modality from day one.</p></div>
+</div>
+<div class="receipt">Top-3 by cosine: <b>Guardrail 0.589 · Sentinel 0.522 · Model Input Security Policy 0.448</b> — all relevant, none containing a manager’s name.</div>
+</div></section><section class="slide" id="s34"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L11 · Agentic RAG & GraphRAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>The property graph</h2>
+<p class="model">The org chart, but every arrow is labelled and every box has fields.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Five node types (Employee, Department, Skill, Project, Document) and six edge types (<code>REPORTS_TO</code>, <code>WORKS_ON</code>, <code>ABOUT</code>, <code>HAS_SKILL</code>, <code>PART_OF</code>, <code>OWNED_BY</code>). Nodes carry properties.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Relationships are first-class data. A graph makes "follow this edge" an O(1) operation instead of something you hope an embedding encoded.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Answers multi-hop questions nothing else can. NetworkX gives you the model for free in memory; Neo4j adds indexed adjacency, persistence and Cypher when you outgrow it.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>In-memory traversal scans all edges — O(E) per hop. And <strong>somebody must build and maintain the graph</strong>: entity types, relationships, and properties like <code>is_engineering</code> staying accurate as people change roles.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Org hierarchies, supply chains, dependency graphs, fraud rings, medical ontologies — any domain where "how are these connected?" is a routine question.</p></div>
+</div>
+<div class="receipt">Sofia Klein manages people on Guardrail and Sentinel. Only <code>is_engineering = 0</code> excludes her. <b>Delete that one field and the system is confidently wrong.</b></div>
+</div></section><section class="slide" id="s35"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L11 · Agentic RAG & GraphRAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>The planner</h2>
+<p class="model">A project manager writing the task list before anyone starts work.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>An LLM decomposes the question into ordered subquestions, each tagged with exactly one tool — <code>sql</code>, <code>vector</code> or <code>graph</code> — returned as JSON. <strong>It executes nothing.</strong></p></div>
+  <div class="card"><h3>Why it exists</h3><p>Complex questions need different retrieval modes for different parts. Deciding which, per question, is a reasoning task — so give it to the model.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Separating planning from execution means you can <strong>inspect, validate, log or override a plan</strong> before paying for a single call. At plan time those tool names are just strings.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>A single point of failure with <strong>no schema enforcement</strong> — a hallucinated tool name or a subquestion referencing evidence no earlier step produced fails at execution, not at plan time. Plans can also contain redundant steps.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Any system with more than one retrieval backend. Constrain the planner with a strict enum and validate the plan as a DAG before executing.</p></div>
+</div>
+<div class="receipt">Plan: <b>q1 vector</b> (find LLM-security projects) → <b>q2 graph</b> (employees + managers) → <b>q3 graph</b> (keep engineering only).</div>
+</div></section><section class="slide" id="s36"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L11 · Agentic RAG & GraphRAG</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Route → Execute → Reflect → Synthesize</h2>
+<p class="model">Dispatch each task to the right specialist, collect results on one desk, check the desk is complete, then write the report.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Map each subquestion’s label to a real function, run it, deposit results in the <strong>evidence buffer</strong>, ask whether the evidence is sufficient, then make one LLM call to write the answer.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>A plan is inert until something executes it — and something must decide whether the result is good enough to answer from.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>The evidence buffer is how step 2 knows what step 1 found. Reflection gives the loop a chance to retry before committing to a bad answer.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Steps run strictly in order even when independent — a DAG-aware executor could parallelise. And a reflector that always returns <code>sufficient</code> is <strong>indistinguishable from no reflector</strong>.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Multi-source research agents, compliance queries spanning documents and databases, anything needing evidence from more than one system.</p></div>
+</div>
+<div class="receipt">q1 → <code>[Atlas, Guardrail, Sentinel]</code> · q2 → <code>[Elena Duarte]</code> · q3 → <code>[Elena Duarte]</code> · reflection <b>sufficient = True</b> on the first pass.</div>
+</div></section><section class="slide" id="s37"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L11 · Agentic RAG & GraphRAG</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>Agentic RAG &amp; GraphRAG &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong>The planner is a single point of failure with no schema enforcement.</strong> Validate plans as a DAG before executing. The in-memory graph scans all edges per hop — O(E) — and must fit one process; Neo4j gives indexed adjacency. Deep plans blow the context window and latency together.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p><strong>Two LLM calls bracket a pipeline whose retrieval is essentially free</strong> — embedding + dot product over 20 rows, and in-memory edge scans, are microseconds. So optimise the calls, not the traversal: cache plans by question template, and trim what enters the synthesis prompt.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>You buy <strong>multi-hop correctness</strong> by paying two LLM calls and a hard dependency on graph data somebody must maintain. A bigger, better single retrieval is cheaper and simpler — and still cannot invent an edge that is not in the text.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>Over-retrieval at step 1 poisoning every later hop (q1 returned Atlas, a data platform) → stale graph properties → reflection rubber-stamping → <strong>fallback mode read as live mode</strong> → redundant plan steps.</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>whether you classify a question before choosing an architecture</strong>. The staff probe is data ownership: "where does the graph come from, and who keeps it correct?" You have quietly acquired a data-quality SLA.</p></div>
+</div>
+</div></section><section class="slide" id="s38"><div class="inner">
+<div class="eyebrow"><span class="tag lec">Lecture 12</span><span class="tag">Overview</span></div>
+<h1>Hybrid Search &amp; Advanced Retrieval</h1>
+<p class="lead">Last lecture the agent was the manager; this one <b>upgrades the employee</b>. The single top-k lookup becomes a stack: BM25 + dense fused by rank, a cross-encoder reranking the shortlist, a calibrated gate, an LLM verifier, and a capped retry loop. <b>Retrieval in production is a mini-agent.</b></p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  Q[User query]--&gt;EXP{"confidence low?&lt;br/&gt;expand query"}
+  EXP--&gt;|3 LLM variants|BM["BM25&lt;br/&gt;exact terms, IDF"]
+  EXP--&gt;DEN["Dense bi-encoder&lt;br/&gt;384-dim"]
+  BM--&gt;|ranked list|RRF["RRF fusion&lt;br/&gt;1/(60+rank)"]
+  DEN--&gt;|ranked list|RRF
+  RRF--&gt;|shortlist 10-20|CE["Cross-encoder rerank"]
+  CE--&gt;GATE{confident?}
+  GATE--&gt;|no|ABST[abstain / retry]
+  GATE--&gt;|yes|VER{verifier:&lt;br/&gt;sufficient?}
+  VER--&gt;|insufficient|RETRY["reformulate&lt;br/&gt;max_iters=3"]
+  RETRY--&gt;EXP
+  VER--&gt;|sufficient|GEN[LLM synthesis]</pre></div>
+<p class="caption">Read it as a <strong>funnel that gets more expensive at every step</strong>: BM25 and the bi-encoder are milliseconds over the whole corpus; the cross-encoder costs hundreds of milliseconds over <em>ten</em> documents; the verifier is a full LLM call over three. Never let an expensive stage see more than a shortlist.</p>
+</div></section><section class="slide" id="s39"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L12 · Hybrid Search</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>BM25 — rare words win</h2>
+<p class="model">A librarian who notices unusual words. Everyone says "the"; almost nobody says "INC-2847".</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Scores a document by how many query terms it contains, weighted by each term’s <strong>IDF</strong> (how rare it is corpus-wide), with a length correction so long documents don’t win by size.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Users type exact identifiers, error codes and acronyms constantly, and those are precisely what semantic search blurs away.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Decisive on exact terms, cheap, interpretable, and needs no training. Rare tokens dominate the score exactly as you want.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>No concept of synonymy at all.</strong> Paraphrase the query and it collapses — it ranked <code>Access Request Procedure</code> above the relevant document.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Identifier lookup, code search, legal citations, SKU and ticket numbers — anywhere users paste an exact string.</p></div>
+</div>
+<div class="receipt"><code>INC-2847</code> is in 1 of 20 docs → BM25 scores the right postmortem <b>4.501</b>, the next two <b>1.553</b>. Tokenise with the hyphen or it splits into <code>inc</code> + <code>2847</code>.</div>
+</div></section><section class="slide" id="s40"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L12 · Hybrid Search</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Dense retrieval (bi-encoder)</h2>
+<p class="model">A colleague who knows what you meant but cannot remember the ticket number.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Embeds the query and each document <strong>independently</strong>, then compares by cosine. Document embeddings are precomputed once and stored.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Users describe problems in their own words. Meaning-based matching bridges the gap when vocabulary does not overlap.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Scales to millions — one query embedding plus a matrix multiply. Handles paraphrase and synonymy that BM25 cannot touch.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Each document was compressed to a single vector <strong>before the query was known</strong>, so exact identifiers get averaged into generic "incident-ness". Nearly a coin flip on ID queries.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Natural-language questions, support search, discovery — paired with BM25, never alone.</p></div>
+</div>
+<div class="receipt">On <code>INC-2847 postmortem</code>: correct doc <b>0.503</b> vs wrong postmortems <b>0.466</b> and <b>0.402</b>. Technically right, almost a tie.</div>
+</div></section><section class="slide" id="s41"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L12 · Hybrid Search</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Reciprocal Rank Fusion</h2>
+<p class="model">An Olympic medal table. You don’t add race times across sports; you add finishing positions.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p><code>RRF(d) = Σ 1/(k + rank)</code> with <code>k = 60</code>. Combines ranked lists using <strong>only positions</strong> — the formula contains no reference to scores.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>BM25 is unbounded and query-dependent; cosine sits in [−1, 1]. Any weighted sum needs a normalisation that is fragile and shifts per query.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p><strong>Scale-invariant by construction</strong> — no normalisation, no tuning, no training. Appearing in both lists is worth far more than a slightly better position in one.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p>Discards score <em>magnitude</em>, so a crushing win and a narrow one count the same. <code>k</code> is a fudge factor chosen by convention rather than derived.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Any time you fuse rankers with incomparable scores — sparse + dense, multiple query variants, several models voting.</p></div>
+</div>
+<div class="receipt">Rank 1 in both lists: 1/61 + 1/62 = <b>0.03252</b>. Rank 3 in one list only: 1/63 = <b>0.01587</b>. Roughly 2× — that is the robustness.</div>
+</div></section><section class="slide" id="s42"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L12 · Hybrid Search</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Cross-encoder reranking</h2>
+<p class="model">The resume screener versus the interviewer.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>Feeds query <strong>and</strong> document into one model together and outputs a single relevance score, applied only to a shortlist of 10-50 candidates.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>A bi-encoder never sees query and document at the same time. A cross-encoder attends to their interaction — which is where the accuracy comes from.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>Substantially more accurate on the shortlist. And its cost is <strong>invariant to corpus size</strong> — 20 candidates whether you have 20 documents or 20 million. That invariance is the point of two-stage retrieval.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>N forward passes for N documents</strong>, so it can never be first-stage. Latency scales linearly with shortlist size, and scores are uncalibrated logits — often negative.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Stage 2 of every serious retrieval system. Airbnb-style: cheap retrieval narrows 500k listings to 300, then a heavy ranker reorders the top 50.</p></div>
+</div>
+<div class="receipt">Measured: shortlist <b>5 → 165 ms · 10 → 246 ms · 20 → 452 ms</b>. Roughly linear — which is why 20-50 is the industry range.</div>
+</div></section><section class="slide" id="s43"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L12 · Hybrid Search</span><span class="tag rung">Rungs 1&ndash;3</span></div>
+<h2>Abstention &amp; the verifier</h2>
+<p class="model">Stack Overflow’s "no results found" — a UX decision, not a bug. And Toyota’s andon cord.</p>
+<div class="grid">
+  <div class="card what"><h3>What it is</h3><p>A <strong>calibrated score threshold</strong> gates low-confidence results, and an <strong>LLM verifier</strong> sitting between retrieval and generation rules <code>sufficient</code> or <code>insufficient</code> on the retrieved snippets.</p></div>
+  <div class="card"><h3>Why it exists</h3><p>Every retriever always returns something. Without a gate, a corpus with no answer still produces five confident-looking documents and a fluent wrong answer.</p></div>
+  <div class="card adv"><h3>Advantage</h3><p>The verifier works well here and returns a <strong>reason</strong>, not just a verdict — and it costs only ~50-200 ms, cheap insurance against an incident.</p></div>
+  <div class="card dis"><h3>Disadvantage</h3><p><strong>The score gate silently failed in this very notebook</strong> — 10 calibration pairs with overlapping ranges produced a threshold that never fires. A gate you trust that never fires is <em>worse</em> than no gate.</p></div>
+  <div class="card use"><h3>Use case</h3><p>Support bots and compliance search, where a confident wrong answer is far worse than "I don’t know". In exploratory search UIs, imperfect results may beat a blank page.</p></div>
+</div>
+<div class="receipt">Threshold <b>−11.07</b>; nonsense "time travel" query scored <b>−10.95</b> → <code>status: "ok"</code>. The gate did not fire.</div>
+</div></section><section class="slide" id="s44"><div class="inner">
+<div class="eyebrow"><span class="tag lec">L12 · Hybrid Search</span><span class="tag rung">Rung 4 · Staff lens</span></div>
+<h2>Hybrid Search &amp; Advanced Retrieval &mdash; judging it</h2>
+<div class="staff">
+  <div class="sbox"><h3>Where it breaks at scale</h3><p><strong>Everything here is a linear scan</strong>, each breaking at a different size. <code>BM25Okapi</code> → a real inverted index. <code>DOC_MATRIX @ q</code> → an ANN index, accepting 95-99% recall for sublinear search. <strong>The cross-encoder never breaks</strong> — it only ever sees the shortlist.</p></div>
+  <div class="sbox"><h3>Latency &amp; cost budget</h3><p><strong>Reranking dominates and scales linearly with shortlist size</strong> (165/246/452 ms for 5/10/20). Worst case per query: 1 expansion call + N retrievals + rerank + verify + retry ×3 — which is why every one of those is gated or capped.</p></div>
+  <div class="sbox"><h3>The real trade-off</h3><p>Each layer buys accuracy by paying latency; <strong>the last two buy honesty</strong>. The threshold and verifier purchase the ability to say "I don’t know" — a capability no retrieval improvement can provide. That is a product decision, and the architecture follows from it.</p></div>
+  <div class="sbox"><h3>Silent failure modes</h3><p>A gate calibrated on too little data that never fires → <strong>an eval set with no headroom</strong> (7 of 8 solved at rank 1, so a real regression reads as noise) → tokeniser drift → index staleness after re-embedding → expansion adding noise on specific queries.</p></div>
+  <div class="sbox"><h3>Why an interviewer asks</h3><p>A litmus test for <strong>understanding that retrievers fail in complementary ways</strong>. The staff-plus probe is evaluation: "how do you know it got better?" This notebook shipped narration its own numbers contradict — spotting that is the judgement being tested.</p></div>
+</div>
+</div></section></div>
+<button class="arrow" id="prev" aria-label="Previous slide">&#8592;</button>
+<button class="arrow" id="next" aria-label="Next slide">&#8594;</button>
+<div id="ov" role="dialog" aria-label="Slide overview">
+  <h2>All 45 slides</h2>
+  <p class="hint">Jump straight to any concept. Green-bordered cards are the staff-engineer lens for each lecture.</p>
+  <div class="ovsec">Front</div><div class="ovgrid"><button class="thumb is-lec" data-go="0"><span class="n">01</span><span class="t">Visual Study Deck</span><span class="m">Start here</span></button><button class="thumb is-lec" data-go="1"><span class="n">02</span><span class="t">The four rungs</span><span class="m">Beginner to staff</span></button></div><div class="ovsec">Lecture 6</div><div class="ovgrid"><button class="thumb is-lec" data-go="2"><span class="n">03</span><span class="t">Multi-Agent Systems: Patterns &amp; Orchestration</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L6</div><div class="ovgrid"><button class="thumb " data-go="3"><span class="n">04</span><span class="t">Shared state</span><span class="m">A whiteboard in the middle of the office. Nobody passes notes; e…</span></button><button class="thumb " data-go="4"><span class="n">05</span><span class="t">Nodes and edges</span><span class="m">A subway map. Stations are nodes, lines are edges, and your requ…</span></button><button class="thumb " data-go="5"><span class="n">06</span><span class="t">Grounding</span><span class="m">An open-book exam where the invigilator adds: if it is not in th…</span></button><button class="thumb " data-go="6"><span class="n">07</span><span class="t">API-only vs LLM-backed agents</span><span class="m">Researchers and writers. Don’t pay a writer’s price for a resear…</span></button></div><div class="ovsec">L6 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="7"><span class="n">08</span><span class="t">Multi-Agent Orchestration</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div><div class="ovsec">Lecture 7</div><div class="ovgrid"><button class="thumb is-lec" data-go="8"><span class="n">09</span><span class="t">CrewAI &amp; Microsoft AutoGen Frameworks</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L7</div><div class="ovgrid"><button class="thumb " data-go="9"><span class="n">10</span><span class="t">The agent is its system message</span><span class="m">Five identical actors, five different scripts.</span></button><button class="thumb " data-go="10"><span class="n">11</span><span class="t">Tool calling vs code execution</span><span class="m">A vending machine versus a kitchen. Fixed buttons, or cook anyth…</span></button><button class="thumb " data-go="11"><span class="n">12</span><span class="t">Reflection</span><span class="m">A first draft, a red pen, and a rewrite.</span></button><button class="thumb " data-go="12"><span class="n">13</span><span class="t">GroupChat</span><span class="m">A whiteboard nobody is allowed to erase.</span></button></div><div class="ovsec">L7 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="13"><span class="n">14</span><span class="t">AutoGen Multi-Agent</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div><div class="ovsec">Lecture 8</div><div class="ovgrid"><button class="thumb is-lec" data-go="14"><span class="n">15</span><span class="t">Advanced Agent Patterns: ReAct, Reflection &amp; Memory</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L8</div><div class="ovgrid"><button class="thumb " data-go="15"><span class="n">16</span><span class="t">The ReAct loop</span><span class="m">A detective. Form a hunch, check one fact, let the fact change t…</span></button><button class="thumb " data-go="16"><span class="n">17</span><span class="t">Tools — the docstring is the interface</span><span class="m">A job advert. The model only applies for tools whose advert desc…</span></button><button class="thumb " data-go="17"><span class="n">18</span><span class="t">Reflection: generate → judge → revise</span><span class="m">Submitting code for review, then pushing a fix.</span></button><button class="thumb " data-go="18"><span class="n">19</span><span class="t">Three types of memory</span><span class="m">What’s on your desk, what you remember about this colleague, and…</span></button></div><div class="ovsec">L8 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="19"><span class="n">20</span><span class="t">ReAct, Reflection &amp; Memory</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div><div class="ovsec">Lecture 9</div><div class="ovgrid"><button class="thumb is-lec" data-go="20"><span class="n">21</span><span class="t">Browser Automation &amp; Web Agents</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L9</div><div class="ovgrid"><button class="thumb " data-go="21"><span class="n">22</span><span class="t">Browser → Context → Page</span><span class="m">The Chrome process, an incognito window, a tab.</span></button><button class="thumb " data-go="22"><span class="n">23</span><span class="t">Locators &amp; auto-wait</span><span class="m">"The blue Login button" survives a redesign; "third div, second …</span></button><button class="thumb " data-go="23"><span class="n">24</span><span class="t">Authentication patterns</span><span class="m">The "Remember me on this device" checkbox.</span></button><button class="thumb " data-go="24"><span class="n">25</span><span class="t">How the LLM sees a page</span><span class="m">A numbered menu, not a wall of HTML.</span></button></div><div class="ovsec">L9 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="25"><span class="n">26</span><span class="t">Browser Automation</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div><div class="ovsec">Lecture 10</div><div class="ovgrid"><button class="thumb is-lec" data-go="26"><span class="n">27</span><span class="t">LlamaIndex &amp; Advanced RAG Frameworks</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L10</div><div class="ovgrid"><button class="thumb " data-go="27"><span class="n">28</span><span class="t">The RAG pipeline</span><span class="m">An open-book exam where a research assistant finds the right pag…</span></button><button class="thumb " data-go="28"><span class="n">29</span><span class="t">Chunking</span><span class="m">Tearing a book into index cards. Too small loses context; too bi…</span></button><button class="thumb " data-go="29"><span class="n">30</span><span class="t">Four index types</span><span class="m">Four librarians. Each is brilliant at one request and useless at…</span></button><button class="thumb " data-go="30"><span class="n">31</span><span class="t">QueryEngineTool — the hinge to agentic RAG</span><span class="m">A receptionist with a directory of specialists.</span></button></div><div class="ovsec">L10 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="31"><span class="n">32</span><span class="t">LlamaIndex &amp; RAG</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div><div class="ovsec">Lecture 11</div><div class="ovgrid"><button class="thumb is-lec" data-go="32"><span class="n">33</span><span class="t">Agentic RAG &amp; GraphRAG</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L11</div><div class="ovgrid"><button class="thumb " data-go="33"><span class="n">34</span><span class="t">Why traditional RAG fails</span><span class="m">A library catalogue finds books about a topic; it cannot tell yo…</span></button><button class="thumb " data-go="34"><span class="n">35</span><span class="t">The property graph</span><span class="m">The org chart, but every arrow is labelled and every box has fie…</span></button><button class="thumb " data-go="35"><span class="n">36</span><span class="t">The planner</span><span class="m">A project manager writing the task list before anyone starts wor…</span></button><button class="thumb " data-go="36"><span class="n">37</span><span class="t">Route → Execute → Reflect → Synthesize</span><span class="m">Dispatch each task to the right specialist, collect results on o…</span></button></div><div class="ovsec">L11 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="37"><span class="n">38</span><span class="t">Agentic RAG &amp; GraphRAG</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div><div class="ovsec">Lecture 12</div><div class="ovgrid"><button class="thumb is-lec" data-go="38"><span class="n">39</span><span class="t">Hybrid Search &amp; Advanced Retrieval</span><span class="m">Overview + diagram</span></button></div><div class="ovsec">L12</div><div class="ovgrid"><button class="thumb " data-go="39"><span class="n">40</span><span class="t">BM25 — rare words win</span><span class="m">A librarian who notices unusual words. Everyone says "the"; almo…</span></button><button class="thumb " data-go="40"><span class="n">41</span><span class="t">Dense retrieval (bi-encoder)</span><span class="m">A colleague who knows what you meant but cannot remember the tic…</span></button><button class="thumb " data-go="41"><span class="n">42</span><span class="t">Reciprocal Rank Fusion</span><span class="m">An Olympic medal table. You don’t add race times across sports; …</span></button><button class="thumb " data-go="42"><span class="n">43</span><span class="t">Cross-encoder reranking</span><span class="m">The resume screener versus the interviewer.</span></button><button class="thumb " data-go="43"><span class="n">44</span><span class="t">Abstention &amp; the verifier</span><span class="m">Stack Overflow’s "no results found" — a UX decision, not a bug. …</span></button></div><div class="ovsec">L12 · staff</div><div class="ovgrid"><button class="thumb is-staff" data-go="44"><span class="n">45</span><span class="t">Hybrid Search &amp; Advanced Retrieval</span><span class="m">Scale · budget · trade-off · failure · interview</span></button></div>
+</div>
+<script>
+(function(){
+  var N = 45, cur = 0;
+  var track = document.getElementById('track'), rail = document.getElementById('rail'),
+      count = document.getElementById('count'), ov = document.getElementById('ov');
+  function go(i, smooth){
+    cur = Math.max(0, Math.min(N-1, i));
+    track.style.transition = smooth === false ? 'none' : '';
+    track.style.transform = 'translateX(' + (-cur * 100) + 'vw)';
+    count.textContent = String(cur+1).padStart(2,'0') + ' / ' + N;
+    rail.style.width = (((cur+1)/N)*100) + '%';
+    var s = document.getElementById('s'+cur); if (s) s.scrollTop = 0;
+    if (location.hash !== '#'+(cur+1)) history.replaceState(null,'','#'+(cur+1));
+  }
+  function closeOv(){ ov.classList.remove('on'); }
+  document.getElementById('next').onclick = function(){ go(cur+1); };
+  document.getElementById('prev').onclick = function(){ go(cur-1); };
+  document.getElementById('ovbtn').onclick = function(){ ov.classList.toggle('on'); };
+  document.getElementById('themebtn').onclick = function(){
+    var r = document.documentElement;
+    var dark = r.getAttribute('data-theme') === 'dark' ||
+      (!r.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    r.setAttribute('data-theme', dark ? 'light' : 'dark');
+  };
+  ov.addEventListener('click', function(e){
+    var b = e.target.closest('[data-go]'); if (!b) return;
+    go(parseInt(b.dataset.go,10)); closeOv();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === 'j') { go(cur+1); e.preventDefault(); }
+    else if (k === 'ArrowLeft' || k === 'PageUp' || k === 'k') { go(cur-1); e.preventDefault(); }
+    else if (k === 'Home') { go(0); e.preventDefault(); }
+    else if (k === 'End') { go(N-1); e.preventDefault(); }
+    else if (k === 'o' || k === 'O') { ov.classList.toggle('on'); e.preventDefault(); }
+    else if (k === 't' || k === 'T') { document.getElementById('themebtn').click(); }
+    else if (k === 'Escape') { closeOv(); }
+  });
+  var h = parseInt((location.hash||'').slice(1),10);
+  go(isNaN(h) ? 0 : h-1, false);
+  window.addEventListener('resize', function(){ go(cur, false); });
+})();
+</script>

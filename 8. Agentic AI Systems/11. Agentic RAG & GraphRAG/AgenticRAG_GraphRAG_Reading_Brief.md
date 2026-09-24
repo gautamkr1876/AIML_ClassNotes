@@ -59,6 +59,44 @@ The second half of the insight: knowing you *need* the org chart is itself a dec
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+**Why vector search cannot answer the question** — the answer is a path, and embeddings have no edges:
+
+```mermaid
+flowchart LR
+    DOC["Guardrail Overview<br/>(cosine 0.589)"] -->|ABOUT| PRJ["Project Guardrail"]
+    ANA["Ana Iyer"] -->|WORKS_ON| PRJ
+    FAT["Fatima Zahra"] -->|WORKS_ON| PRJ
+    ANA -->|REPORTS_TO| ELE["Elena Duarte<br/>is_engineering = 1"]
+    FAT -->|REPORTS_TO| ELE
+    BEN["Ben Cho"] -->|WORKS_ON| SEN["Project Sentinel"]
+    BEN -->|REPORTS_TO| SOF["Sofia Klein<br/>is_engineering = 0"]
+    ELE:::keep
+    SOF:::drop
+    classDef keep fill:#1b7f4b,color:#fff,stroke:#0d5c34
+    classDef drop fill:#8a2f2f,color:#fff,stroke:#5c1d1d
+```
+
+**Reading it aloud.** Vector search gets you as far as the leftmost box and stops — it can score
+`Guardrail Overview` at 0.589 because the *text* is about LLM security, but there is no edge inside
+an embedding to follow from a document to the people who work on it. Everything to the right of that
+first arrow is graph traversal. The green node is the answer; the red one is the trap — Sofia Klein
+manages people on these very projects, and the *only* thing excluding her is the `is_engineering = 0`
+property on her node. Delete that one field and the system returns a confidently wrong answer.
+
+And here is the agentic loop that drives it, as frames rather than prose:
+
+```
+frame 1   plan = [q1 vector, q2 graph, q3 graph]      nothing executed yet
+frame 2   evidence = {}                               q1 runs
+frame 3   evidence = {projects: [Atlas, Guardrail, Sentinel]}   q2 reads projects
+frame 4   evidence = {projects: [...], managers: [Elena Duarte]}  q3 filters
+frame 5   reflect -> sufficient = True                synthesize
+```
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. Why traditional RAG fails here
@@ -214,6 +252,98 @@ Plan → (Route → Execute → Evidence)* → Reflect → Synthesize
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+**The planner is a single point of failure with no schema enforcement.** It returns free-form JSON
+parsed by `parse_json`; a malformed plan, a hallucinated tool name, or a subquestion that references
+evidence no earlier step produced all fail at execution time, not at plan time. At scale you
+constrain the planner with a strict schema (tool names as an enum), validate the plan as a DAG
+before executing a single step, and reject plans that reference undefined evidence keys.
+
+The graph itself breaks differently. `InMemoryOrgGraph` holds every node and edge in Python memory
+and traversal is a full scan over `ORG.g.edges(data=True)` — O(E) per hop. Nine employees is
+instant; ten million edges is not, and the whole structure must fit in one process. Neo4j exists for
+exactly this: indexed adjacency, so a `REPORTS_TO` hop is a pointer chase rather than a scan, plus
+persistence and concurrent access.
+
+The third limit is **plan depth**. Each subquestion is at least one tool call and the synthesis
+prompt accumulates every step's evidence, so a 10-step plan means 10 executions plus a prompt
+carrying all ten results. Deep plans blow the context window and the latency budget together.
+
+### Latency & cost budget
+
+One run of the notebook's question:
+
+| Stage | Cost | Dominates? |
+|---|---|---|
+| planning | 1 LLM call | no, but it's on the critical path and blocks everything |
+| q1 vector | 1 embed + 20-row dot product | no — microseconds |
+| q2/q3 graph | in-memory edge scans | no — microseconds |
+| reflection | 1 LLM call | no |
+| synthesis | 1 LLM call, carries all evidence | **yes on tokens** |
+
+**Two LLM calls bracket a pipeline whose actual retrieval is free.** That shape matters: it means
+optimising the graph traversal is optimising the wrong thing, and the real levers are (a) don't
+re-plan for query shapes you've seen before — cache plans by question template — and (b) trim what
+enters the synthesis prompt. Note also that planning is strictly serial ahead of execution, so it
+sits on the critical path for every single request.
+
+The one genuine parallelism win is unexploited here: `q2` depends on `q1`'s output, but independent
+subquestions in a plan could be dispatched concurrently. A DAG-aware executor would do this; this
+one runs the list in order.
+
+### The trade-off you're actually making
+
+**You are buying multi-hop correctness by paying two LLM calls and a hard dependency on graph data
+that someone has to build and maintain.** The alternative is a bigger, better single retrieval —
+larger chunks, better embeddings, hybrid search — which is cheaper and simpler and still cannot
+answer this question, because no amount of retrieval quality invents an edge that isn't in the text.
+
+The cost that doesn't show up in the latency table is **the graph itself**. Somebody must define the
+entity types, extract or maintain the relationships, and keep `is_engineering` accurate as people
+change roles. That's an ongoing data-engineering commitment, and it's why GraphRAG is worth it only
+when relationship questions are a recurring workload rather than an occasional one.
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail:
+
+1. **Over-retrieval at step 1 silently poisoning every later step.** `q1` returned
+   `['Atlas', 'Guardrail', 'Sentinel']` — and Atlas is the data platform, not a security project.
+   Here it was harmless; in general a false positive at the first hop propagates through every
+   traversal and the final answer looks perfectly well-formed.
+2. **Stale graph properties.** Sofia's `is_engineering` flag is the entire basis of the exclusion. If
+   someone transfers teams and the graph isn't updated, the system returns a wrong name with full
+   confidence and a fluent justification.
+3. **Reflection rubber-stamping.** `sufficient = True` on the first pass means the retry path never
+   ran. An always-sufficient reflector is indistinguishable from no reflector.
+4. **Fallback mode read as live mode.** With no Groq key the notebook returns hardcoded
+   `_FALLBACK_PLAN` and `_FALLBACK_ANSWER` that happen to match this exact question. It "works"
+   while proving nothing — check for `LLM mode: live (Groq)` before believing any result.
+5. **Redundant plan steps** (`q3` re-filtered what `q2` already filtered) — pure cost, no signal.
+
+### Why an interviewer asks this
+
+"When does RAG stop working?" is a litmus test for **whether you can classify a question before
+choosing an architecture.** The weak answer reaches for better embeddings. The strong answer runs the
+four verbs — join, filter, traverse, aggregate — and observes that none of them are operations a
+top-k similarity search performs, so the fix is a different retrieval *modality*, not a better one.
+
+The follow-up that separates senior from staff is data ownership: *"where does the graph come from,
+and who keeps it correct?"* An architecture that depends on a property like `is_engineering` has
+quietly acquired a data-quality SLA, and candidates who don't surface that have designed a demo. The
+third probe is the planner: an LLM emitting free-form JSON that drives tool execution is an injection
+surface and a reliability risk, and constraining it with a schema and a DAG validation pass is the
+expected answer.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 - [ ] The four verbs (join, filter, traverse, aggregate) and why any of them breaks plain RAG.
@@ -223,16 +353,24 @@ Plan → (Route → Execute → Evidence)* → Reflect → Synthesize
 - [ ] The four stages of the execution loop, and what the evidence buffer is for.
 - [ ] Why Sofia Klein is excluded, and what data made that possible.
 - [ ] When to reach for vector, graph, or SQL — and that a real system has all three.
+- [ ] **(staff)** Why two LLM calls bracket a pipeline whose retrieval is essentially free — and what that means for optimisation.
+- [ ] **(staff)** What data-freshness SLA the graph quietly imposes, and who owns it.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 1. The vector search returned three documents all genuinely about LLM security. Why is that a *failure*, and what exactly was missing?
 2. `normalize_embeddings=True` is set at encode time. What does that let the similarity code skip, and how does the code end up as `matrix @ query_vec`?
 3. The planner tags q2 as `graph`. What has actually happened to the graph database at the moment the plan is printed?
 4. Sofia Klein manages people working on Guardrail and Sentinel. Why is she correctly absent from the answer, and which piece of data makes that possible?
 5. You're asked: *"Which projects have budgets over $500,000, and who are their engineering leads?"* How would the planner decompose it, and why can't one tool do the job?
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. Your agentic RAG system is 100× larger: 5,000 documents, 50,000 employees, 200 queries/minute. Name what breaks and what replaces each piece.
+7. The planner emits a subquestion tagged `graph` that references evidence no earlier step produced. Where does this fail today, and where should it fail?
+8. Six months after launch, the system names a manager who moved to another team last quarter. Whose bug is it, and what SLA did the architecture quietly acquire?
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -246,6 +384,14 @@ Plan → (Route → Execute → Evidence)* → Reflect → Synthesize
 4. Because the question says *engineering* managers, and Sofia leads **Security**. The graph tool's final step keeps only managers whose `is_engineering` property is set — Sofia's is `0`. Without that property on the employee nodes, the system would have had no way to distinguish her from Elena and would have returned a confidently wrong answer. Note the synthesised answer names her and explains the exclusion, which is exactly the transparency you want.
 
 5. Roughly three subquestions: **q1 (`sql`)** — select projects joined to budgets where `amount_usd > 500000`, because that's a filter-and-join over structured rows; **q2 (`graph`)** — for each of those projects, traverse `WORKS_ON` to employees and `REPORTS_TO` to their managers; **q3 (`graph`)** — keep only managers with `is_engineering` set. No single tool works: SQL can't naturally walk an arbitrary-depth reporting hierarchy (it needs an awkward recursive CTE), the graph doesn't hold budget amounts, and vector search can't do a numeric threshold at all. Having three tools *and a planner that picks between them* is the entire point of agentic RAG.
+
+**Staff answers**
+
+6. **(a) The in-memory NetworkX graph** — every traversal scans `ORG.g.edges(data=True)`, O(E) per hop, with the whole structure in one process's RAM. Replaced by Neo4j (or any indexed property-graph store): adjacency is indexed, so a `REPORTS_TO` hop is a pointer chase, and it persists and handles concurrency. **(b) The vector step** — the notebook's `matrix @ query_vec` is an exact linear scan; at 5,000+ documents and 200 QPM you move to an ANN index (HNSW/FAISS/pgvector). **(c) The planner as a per-request LLM call** — at 200 QPM that's 200 planning calls a minute on the critical path before any retrieval starts. Cache plans by question template, or classify into a small set of known plan shapes and only fall back to the LLM for novel questions. What *doesn't* break: the synthesis call, which stays one per request — though you'd need to cap how much evidence enters it.
+
+7. **Today it fails at execution time**, and quietly: the tool does `evidence.get("projects", [])`, gets the empty-list default, traverses nothing, and returns an empty result. The pipeline continues, reflection may well call it sufficient, and synthesis writes a fluent answer over no evidence. **It should fail at plan time**, before a single call is paid for: validate the plan as a DAG — every subquestion declares which evidence keys it consumes and produces, every consumed key must be produced by an earlier step, tool names come from a strict enum, and there are no cycles. Reject and re-plan otherwise. The general principle: **an empty-dict default turns a structural error into a silent wrong answer**, so validate the structure up front rather than defaulting at read time.
+
+8. **It's nobody's code bug — it's a data bug, and that's the point.** The traversal, the filter and the synthesis all worked exactly as written; the graph said the person still reported to that manager. By choosing an architecture whose correctness depends on `is_engineering`, `REPORTS_TO` and `WORKS_ON` being current, **you acquired a data-freshness SLA on the org graph** — probably owned by whoever runs the HR system, who has never heard of your retriever. Concretely you now need: a defined sync cadence from the system of record (ideally change-data-capture rather than a nightly rebuild), staleness metadata surfaced in the answer ("org data as of…"), monitoring on sync lag, and an agreed owner. This is the cost that never appears in the latency table and is the usual reason GraphRAG projects decay after launch.
 
 </details>
 

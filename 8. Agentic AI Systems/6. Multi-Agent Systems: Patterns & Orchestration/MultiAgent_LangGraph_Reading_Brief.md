@@ -54,6 +54,36 @@ That board is the **shared state**. The specialists are **nodes**. The rule "the
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+```mermaid
+flowchart TD
+    START([START]) --> SUP["supervisor<br/>Gemini: text to JSON"]
+    SUP -->|origin, destination, iata, days| FL["flight_agent<br/>Aviationstack"]
+    SUP --> HO["hotel_agent<br/>Tavily"]
+    SUP --> NE["news_agent<br/>NewsData.io"]
+    SUP --> WE["weather_agent<br/>geocode then forecast"]
+    FL -->|flights| CO["cost_agent<br/>Tavily + Gemini"]
+    HO -->|hotels| CO
+    FL --> IT["itinerary_agent<br/>Gemini"]
+    HO --> IT
+    NE --> IT
+    WE --> IT
+    CO -->|cost| IT
+    IT -->|itinerary| FI["final_agent<br/>Gemini"]
+    FI --> END([END])
+```
+
+**Reading it aloud.** One arrow leaves `START` into the supervisor, which is the only node that sees
+the user's raw sentence — everything downstream reads structured fields instead. The supervisor then
+branches four ways, and because those four share no data they all run in the same round. `cost_agent`
+has two incoming arrows and waits for both; `itinerary_agent` has five and waits for all of them,
+which is where the scheduling subtlety in gotcha 1 comes from. Notice that no arrow ever connects two
+specialists directly: **every arrow in this picture is really "write to the shared state, then let
+the next node read it."**
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. Shared state — the board everyone writes on
@@ -208,6 +238,84 @@ round N+1: repeat
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+**The first resource to run out is not compute — it's third-party rate limit.** One user request
+fans out to five external APIs, two of which (Tavily advanced ×2) are the slow, metered ones. At 100
+concurrent planning requests you are issuing 500 external calls, and Aviationstack's free tier caps
+in the hundreds *per month*. The graph has no retry, no backoff, no circuit breaker and no per-node
+timeout, so the failure at scale is not graceful degradation — it's a `raise_for_status()` exception
+killing one node, which kills the run.
+
+The second limit is **prompt size**. `itinerary_agent` interpolates the *entire* `flights`, `hotels`,
+`weather`, `news` and `cost` objects into one prompt. The Aviationstack test alone returned 20 flight
+records of deeply nested JSON. At realistic result counts this blows the context window, and the
+failure is quiet: the model silently attends to the top of a huge prompt and ignores the rest.
+
+### Latency & cost budget
+
+Measured shape of one run, from the notebook's own trace:
+
+| Stage | Calls | Dominates? |
+|---|---|---|
+| supervisor | 1 Gemini | no (~1 s) |
+| 4 research agents | 4 HTTP, parallel | **critical path = slowest single API** |
+| cost | 1 Tavily *advanced* + 1 Gemini | **yes** — advanced search is the expensive leg |
+| itinerary + final | 2 Gemini, long prompts | yes on token cost |
+
+Wall clock is roughly `supervisor + max(4 research) + cost + itinerary + final` — the fan-out is the
+one place the design already buys you parallelism. Token cost is dominated by the last two calls,
+because both paste the full accumulated state. And the notebook measurably **pays for one call it
+doesn't need**: `🎯 FINAL AGENT STARTED` prints twice, so you are billed twice for the most expensive
+prompt in the graph.
+
+### The trade-off you're actually making
+
+**You are buying per-step debuggability and parallelism by paying orchestration complexity and extra
+LLM calls.** The alternative design is one Gemini call with five tools registered, letting the model
+decide what to fetch — fewer moving parts, one prompt, and function-calling handles the sequencing.
+What you'd lose is exactly what this notebook's structure gives you: the ability to unit-test
+`hotel_agent` against a two-key dictionary, to see which stage produced a bad field, and to guarantee
+the four research calls actually overlap rather than hoping the model emits them together.
+
+Rule of thumb: **graph orchestration wins when the dependency structure is known and fixed**, as it
+is here. Tool-calling wins when the required steps vary per request.
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail, worst first:
+
+1. **Stale data presented as live.** Nothing timestamps the API responses. A cached or hours-old
+   weather reading flows into a plan that claims to be "current". No alarm fires, ever.
+2. **`state.get("days", 1)` silently defaulting.** A supervisor extraction miss becomes a one-day
+   itinerary for a five-day trip. A wrong answer, not an error.
+3. **Duplicate node execution.** Uneven fan-in depth re-runs the final agent — double billing and,
+   if a node ever mutates rather than appends, double side effects.
+4. **Empty IATA silently widening the query.** `destination_iata: ""` drops the arrival filter, so
+   the flight agent returns departures to *anywhere*. Here that produced the honest "no direct
+   flights" answer — but the same mechanism could surface irrelevant flights as if they were matches.
+
+### Why an interviewer asks this
+
+"Design a multi-agent travel planner" is a litmus test for **whether you think in dependency graphs
+or in scripts.** A weak answer describes agents talking to each other; the strong answer draws the
+DAG, identifies which nodes are independent (the fan-out), names the join points, and immediately
+asks what happens when one branch fails.
+
+The follow-up that separates senior from staff is always partial failure: *"the hotel API is down —
+what does the user see?"* This implementation has no answer, and saying so out loud — per-node
+try/except returning a structured `{"ok": false}`, a timeout budget per node, degrade rather than
+crash — is the answer they're listening for. The second probe is usually cost: if you can't say which
+of your six model calls dominates the bill, you haven't operated the system.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 After the notebook, you should be able to say in your own words:
@@ -218,10 +326,12 @@ After the notebook, you should be able to say in your own words:
 - [ ] How **fan-out** and **fan-in** are expressed, and why uneven fan-in made the final agent run twice.
 - [ ] What **grounding** means concretely, and name two of the seven itinerary rules.
 - [ ] Why "no direct flights found" is the *successful* outcome of this notebook, not a failure.
+- [ ] **(staff)** Which stage dominates wall-clock and which dominates token cost — and why they're different stages.
+- [ ] **(staff)** What a graph orchestration buys you over one LLM call with five registered tools, and when you'd choose the other one.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 Answer these using only this Brief.
 
@@ -230,6 +340,12 @@ Answer these using only this Brief.
 3. You want the news agent to run *after* the weather agent instead of alongside it. What exactly do you change — and what must you remember to do afterwards?
 4. Why does the weather agent make two HTTP calls where the news agent makes one?
 5. The final answer says there are no direct Delhi→Manali flights. Explain the full chain — from the supervisor's output to the prompt rules — that produced that honest answer instead of an invented flight number.
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. This runs fine for one user. Product wants 100 concurrent planning requests. What runs out first, and what do you change before you ship?
+7. Your finance lead says the planner costs 3× the forecast. Where do you look first, and what's the one-line fix already visible in this notebook's output?
+8. An interviewer asks: "the hotel API is down — what does the user see?" What does this implementation actually do, and what should it do?
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -243,6 +359,14 @@ Answer these using only this Brief.
 4. OpenWeather's forecast endpoint accepts latitude/longitude, not place names — so the agent must first call the geocoding endpoint to turn `"Manali"` into `(32.2455, 77.1873)`. NewsData.io accepts a plain text query, so one call suffices. The lesson: one agent = one *responsibility*, which may be any number of HTTP calls.
 
 5. The supervisor extracted `origin_iata: "DEL"` and `destination_iata: ""` (refusing to invent a code). The flight agent queried Aviationstack with departure DEL only, and got back flights to Patna, Leh, Mumbai and Varanasi — nothing toward Manali. Those raw results were pasted into the itinerary and final prompts, which carry explicit rules: *"Do not invent live facts", "Do not claim a flight is bookable"*. With no supporting evidence in the prompt and an explicit ban on fabrication, the model's only available honest move was to report the absence and recommend road transit.
+
+**Staff answers**
+
+6. **Third-party rate limits, well before compute.** Each request fans out to five external APIs — 500 calls at 100 concurrent — and Aviationstack's free tier caps in the hundreds *per month*. Before shipping: per-node timeouts, retry with exponential backoff, a circuit breaker per API, a cache keyed on (destination, date) since weather and news are shared across users, and per-node `try/except` returning a structured failure so one dead API degrades the plan instead of killing the run.
+
+7. **The last two Gemini calls** — `itinerary_agent` and `final_agent` — because both interpolate the *entire* accumulated state into one prompt, making them by far the largest token consumers. The one-line fix is visible in the notebook's own output: `🎯 FINAL AGENT STARTED` prints **twice**, so the most expensive prompt in the graph is billed twice per run. Fix the uneven fan-in (or make the node idempotent/memoised) and you remove a duplicate call for free. Second-order: trim what gets interpolated — the raw 20-record Aviationstack JSON doesn't need to reach the prompt.
+
+8. **Today: the run dies.** `hotel_agent` calls `response.raise_for_status()`, the exception propagates, the node fails, and the graph run ends with no answer — even though flights, weather and news all succeeded. It should instead catch per node and write a structured `{"ok": false, "error": ...}` into state, let the itinerary prompt see "hotels: unavailable" and plan around it, and surface the gap to the user. The general principle is the one the interviewer is testing: **in a fan-out, one branch failing must not be allowed to discard the branches that succeeded.**
 
 </details>
 

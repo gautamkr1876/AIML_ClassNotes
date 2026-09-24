@@ -60,6 +60,39 @@ Real systems hire several and put a receptionist out front to route each questio
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+The pipeline, with the four index types branching off the same documents:
+
+```mermaid
+flowchart TD
+    D["data/*.txt"] --> R["SimpleDirectoryReader<br/>to Document objects"]
+    R --> N["SentenceSplitter<br/>chunk_size=512, overlap=50<br/>to Nodes"]
+    N --> V["VectorStoreIndex<br/>embed each chunk"]
+    N --> T["TreeIndex<br/>LLM summarises bottom-up"]
+    N --> K["SimpleKeywordTableIndex<br/>extract keywords"]
+    N --> G["KnowledgeGraphIndex<br/>LLM extracts triplets"]
+    V --> QE["as_query_engine()"]
+    T --> QE
+    K --> QE
+    G --> QE
+    Q["user question"] --> QE
+    QE -->|retrieved chunks| P["prompt = question + context"]
+    P --> L["Groq gpt-oss-120b"]
+    L --> A["answer + source_nodes"]
+    V -.stored in.-> RAM[("SimpleVectorStore<br/>= Colab RAM<br/>lost on restart")]
+```
+
+**Reading it aloud.** Everything left of `as_query_engine()` happens **once, at build time**; everything
+right of it happens **per question**. The four branches all consume the same nodes and differ only in
+how they organise them — which is why you can build all four over one corpus and route between them.
+The dotted line is the trap cells 25-27 exist to warn about: the default vector store lives in the
+runtime's RAM, so a Colab restart silently destroys the index. And note `source_nodes` coming back
+attached to the answer — that's the debugging handle, and reading it is the habit this notebook is
+really trying to install.
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. The RAG pipeline — five stages
@@ -236,6 +269,92 @@ response.source_nodes    # what it was given to say it with
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+**`SimpleVectorStore` is a Python list, and search over it is a linear scan.** At 1 document it's
+instant; at 1 million chunks every query embeds then compares against every vector — O(N) per query,
+with the whole index resident in RAM. Real systems replace this with an **approximate nearest
+neighbour** index (HNSW in FAISS, Chroma, Weaviate, pgvector), trading exact recall for sublinear
+search. The migration is the single biggest architectural step between this notebook and production,
+and `StorageContext` is the seam where it plugs in.
+
+`KnowledgeGraphIndex` breaks earlier and more expensively: **one LLM call per chunk** at build time.
+A 10,000-chunk corpus is 10,000 completions to build the graph once — and again on every re-ingest,
+because nothing here is incremental. The notebook prints its own warning ("this took longer") on a
+single Amazon article.
+
+The third limit is **ingestion, not query**. Nothing in this pipeline updates. A changed policy
+document means rebuilding, and at scale that becomes a Change Data Capture problem — a decoupled
+pipeline that re-chunks and re-embeds only what changed, rather than an application-loop rebuild.
+
+### Latency & cost budget
+
+Split build-time from query-time, because they have completely different shapes:
+
+| | Build (once) | Query (every request) |
+|---|---|---|
+| Vector | embed each chunk — **free here** (local CPU BGE) | 1 embed + linear scan + 1 LLM call |
+| Tree | 1 LLM call per summary node | tree traversal + 1 LLM call |
+| Keyword | keyword extraction — cheap | lookup + 1 LLM call |
+| Graph | **1 LLM call per chunk** | traversal + 1 LLM call |
+
+The notebook's choice of a **local** embedding model is a real architectural decision hiding in one
+line: `HuggingFaceEmbedding` runs the 133 MB BGE model on CPU, so embedding costs nothing and no
+document text leaves the machine. That matters twice — it's the cheap option, and it's the
+data-residency-compliant option. Query latency is then dominated by the single Groq completion, not
+by retrieval, which is why chasing retrieval speed on a small corpus optimises the wrong thing.
+
+### The trade-off you're actually making
+
+**A local small embedding model buys you zero marginal cost and data residency by paying retrieval
+quality.** `bge-small-en-v1.5` is 384-dimensional and English-only; a larger or hosted model scores
+measurably better on hard retrieval, at per-token cost and with your documents crossing a network
+boundary.
+
+The second trade-off is the index-type choice itself, and it's the notebook's real lesson: **you are
+choosing which question shape to be good at.** Tree summarises and loses detail; keyword nails exact
+terms and dies on synonyms; vector generalises and fuzzes identifiers; graph traverses and costs a
+call per chunk. There is no universal index, so the mature design builds two or three and routes —
+which is exactly what `QueryEngineTool` is for, and exactly where the next two lectures go.
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail:
+
+1. **Garbage in the corpus becomes garbage in every chunk.** This notebook demonstrates it
+   accidentally: auto-generated `# This line performs the operation…` comments are embedded *inside*
+   the source documents, so they get chunked, embedded and retrieved — visible in cell 32's
+   `source_nodes`. No error, just quietly degraded retrieval for the life of the index.
+2. **Stale index.** The corpus changed; nothing re-ingested; the system answers confidently from
+   last month's policy.
+3. **Silent config drift.** `Settings` applies at construction, so changing `node_parser` after
+   building leaves you querying an index chunked by the old rules — the notebook does exactly this
+   between cells 23 and 39.
+4. **`Empty Response` treated as "no such policy".** It means *retrieval* found nothing, which is a
+   very different claim from *the corpus* containing nothing.
+5. **Index lost on restart**, rebuilt automatically, and now subtly different.
+
+### Why an interviewer asks this
+
+"Build a RAG system" is a litmus test for **whether you debug retrieval or blame the model.** The
+weak answer responds to a bad output by changing the prompt or the model. The strong answer reaches
+for `source_nodes` first and splits the problem in two: right chunks + wrong answer is a generation
+problem; wrong chunks + wrong answer is a retrieval problem. Volunteering that split unprompted is
+the single clearest signal of having actually operated a RAG system.
+
+The follow-up that separates senior from staff is chunking: *"how did you pick 512 and 50?"* There is
+no defensible answer that isn't empirical — you pick by measuring against a labelled eval set, which
+is precisely the machinery lecture 12 builds. The third probe is usually freshness: if you can
+describe the index but not how it gets updated, you've built a demo.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 - [ ] The five stages of a RAG pipeline, and which LlamaIndex object owns each.
@@ -245,16 +364,24 @@ response.source_nodes    # what it was given to say it with
 - [ ] Why the keyword index returned `Empty Response`, and which index would have answered.
 - [ ] Why `SimpleVectorStore` disappears on restart, and what you'd swap in for production.
 - [ ] What a `QueryEngineTool`'s `description` is for, and why it's the hinge to agentic RAG.
+- [ ] **(staff)** Why `SimpleVectorStore` is O(N) per query, and what replaces it.
+- [ ] **(staff)** Why `source_nodes` splits every RAG bug into exactly two classes.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 1. Your RAG system confidently answers a question wrongly. What's the first object you inspect, and how does its content split the diagnosis in two?
 2. You set `Settings.node_parser = SentenceSplitter(chunk_size=256)` after building an index, then query it. Which chunk size is in effect, and why?
 3. A user searches your policy corpus for "reward points" and gets nothing, though a membership document mentions "loyalty points". Which index type is in use, and which would you switch to?
 4. You need "summarise all 5,000 of our documents in one paragraph" *and* "what's the exact refund window for electronics?" Why does no single index serve both well?
 5. Your Colab runtime restarts and every query now returns nothing. What happened, and what's the production fix?
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. Your RAG demo runs on 20 documents. Legal now wants it over 2 million. Name the three things that break first and what each is replaced by.
+7. Your corpus is a mix of policy documents and incident tickets. Users ask both "summarise our security posture" and "what exactly happened in INC-2847?" Why does one index not serve both, and what do you build?
+8. A stakeholder reports the assistant gave a confidently wrong answer. Walk through your first five minutes of debugging.
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -268,6 +395,14 @@ response.source_nodes    # what it was given to say it with
 4. They're opposite question shapes. The summary question needs a **TreeIndex**, which builds hierarchical LLM summaries — but that same summarisation *discards* the specific detail, so it can't tell you the electronics refund window. The exact-detail question needs a **VectorStoreIndex** (or keyword) retrieving the specific chunk — but pulling a handful of chunks from 5,000 documents can never summarise the whole corpus. Real systems build both over the same documents and route by question type, which is what `QueryEngineTool` enables.
 
 5. The default `SimpleVectorStore` holds everything **in the runtime's RAM**, so a restart wipes the documents, embeddings and index together. The production fix is a persistent vector store — Chroma, FAISS with a saved file, Pinecone, Weaviate — attached via a `StorageContext`, so the index survives the process and can be reloaded rather than re-embedded.
+
+**Staff answers**
+
+6. **(a) `SimpleVectorStore`** — a Python list scanned linearly, held entirely in RAM. Replaced by an approximate-nearest-neighbour store (FAISS/HNSW, Chroma, Weaviate, pgvector) attached through `StorageContext`, trading exact recall for sublinear search and giving you persistence for free. **(b) The build being in-process and all-or-nothing** — 2 million chunks can't be re-embedded in a notebook cell on every change. Replaced by a decoupled ingestion pipeline that processes incrementally, ideally driven by change data capture so only modified documents are re-chunked. **(c) `KnowledgeGraphIndex`, if you're using it** — one LLM call per chunk means 2 million completions to build, which is economically absurd; replaced by rule-based or model-distilled entity extraction, or dropped in favour of graph-only-where-needed. Worth noting what *doesn't* break: local CPU embedding still costs nothing per document, though you'd batch it on a GPU for throughput.
+
+7. **Because they are opposite question shapes.** "Summarise our security posture" needs synthesis across the *whole* corpus — that's `TreeIndex`, which builds hierarchical LLM summaries bottom-up. But that same summarisation discards specifics, so it cannot tell you what happened in INC-2847. Conversely, retrieving a handful of chunks (vector or keyword) nails the specific incident but can never summarise 2 million documents, because top-k by definition reads almost none of them. **What you build:** both indexes over the same nodes, plus a routing layer — wrap each as a `QueryEngineTool` with a `name` and a `description`, and let a planner LLM pick per question. The description is the only thing the router reads, so it carries the whole routing quality. (And for the identifier case specifically, add keyword/BM25 alongside vector — `INC-2847` is exactly the query type dense retrieval loses, which is lecture 12's opening demo.)
+
+8. **Minute 1: read `response.source_nodes`, not the answer.** That single object splits the problem in two and everything else follows from it. **Minutes 2-3, if the chunks are relevant:** it's a *generation* problem — check whether the answer actually contradicts the retrieved text, inspect the assembled prompt for truncation, check whether conflicting chunks were retrieved together, and look at the model/temperature. **Minutes 2-3, if the chunks are irrelevant or empty:** it's a *retrieval* problem — check the index type against the question shape (an `Empty Response` from a keyword index on a synonym query is a vocabulary mismatch, not a missing document), check whether chunking split the answer across a boundary, and check the embedding model. **Minutes 4-5, either way:** confirm the index is current — was it rebuilt after the source changed, and were `Settings` altered after construction? Then write the failing question into a labelled eval set so the fix is measurable and the regression is caught next time.
 
 </details>
 

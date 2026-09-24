@@ -48,6 +48,43 @@ Reflection adds a second loop *around* the answer (is this output good enough?),
 
 ---
 
+## 🖼️ The picture — one diagram that holds the whole notebook
+
+ReAct is a **state machine**, and drawing it that way makes the loop obvious:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Thought: user query
+    Thought --> Action: emit tool_calls
+    Action --> Observation: ToolMessage returns
+    Observation --> Thought: enough info?
+    Thought --> Answer: yes
+    Answer --> [*]
+    note right of Observation
+        this edge is the whole point:
+        the result reshapes the next thought
+    end note
+```
+
+**Reading it aloud.** The agent enters at `Thought`, decides it needs something, and emits a tool
+call — that's `Action`. The tool's result comes back as an `Observation`, and the arrow from
+`Observation` back to `Thought` is the mechanism that separates ReAct from planning: the agent
+re-decides *after seeing what actually returned*, rather than executing a plan it wrote up front.
+Query 4 in the notebook takes exactly this loop and discovers `Status: Cancelled` on the first
+observation — nobody wrote a cancelled-order branch, the loop just reacted to what came back.
+
+And here is what the three patterns cover between them, which is worth seeing as one picture:
+
+```
+                ReAct  ──── acts on the world ───▶ tools / databases
+                  │
+            Reflection ──── acts on its own output ──▶ better answer
+                  │
+              Memory  ──── acts across time ─────▶ future sessions
+```
+
+---
+
 ## 📖 Core concept primers
 
 ### 1. The ReAct loop — Thought, Action, Observation
@@ -185,6 +222,89 @@ generate → judge → (LGTM? stop) → revise → judge → … up to max_itera
 
 ---
 
+## 🏛️ Staff-engineer lens
+
+*Rung 4. Everything below assumes the beginner material above; nothing more.*
+
+### Where this breaks at scale
+
+**The ReAct loop's cost is unbounded in the number of steps, and each step re-sends everything.** The
+full message history — every thought, every tool call, every observation — is resent on every
+iteration. Query 3 makes four tool calls; the fourth request carries all three prior observations.
+With verbose tool outputs (imagine `lookup_order` returning a real order with 50 line items) a
+ten-step loop hits the context window, and it does so *silently* — the model starts ignoring early
+observations rather than erroring.
+
+The second scaling limit is **tool count**. Three tools fit comfortably in a system prompt. At
+thirty, the descriptions themselves consume the budget and selection accuracy falls off — the model
+starts picking plausible-but-wrong tools. The production answer is a retrieval step over the tool
+catalogue (embed the query, surface the top-5 candidate tools) rather than listing all of them.
+
+Memory has the mirror problem: the pseudocode's `top_k=3` with a `0.5` similarity floor is the
+admission that you can never put 10,000 memories in a prompt. **Retrieval is the compression step**,
+and its recall is the ceiling on what the agent can remember.
+
+### Latency & cost budget
+
+Every ReAct step is a full model round trip, so latency is **serial in the number of tool calls** —
+Query 3's four calls are four sequential completions plus four tool executions, and the tools here
+are dictionary lookups costing microseconds. That ratio is the thing to internalise: **the model
+dominates, the tools are free.** Optimising the tool is optimising the wrong thing.
+
+One genuine win is visible in the traces: Query 4 emits two `check_inventory` calls **in the same
+turn**, because `tool_calls` is a list and the targets were independent. Query 2 cannot do this — it
+must wait for `lookup_order` to learn *which* products to look up. Recognising which of your tool
+calls are independent, and batching those, is where the latency savings actually live.
+
+Reflection multiplies rather than adds: `max_iterations=3` is up to **7 calls** (1 generate + 3 judge
++ 3 revise) for one answer. Here it exited at 2 calls because the judge approved immediately — so the
+notebook's measured cost is the best case, not the typical one.
+
+### The trade-off you're actually making
+
+**ReAct buys adaptability by paying serial latency and unbounded step count.** Plan-and-Solve writes
+the whole plan up front, so the steps can be dispatched concurrently and the cost is known before you
+start — but it can't recover when step 2 returns something the plan didn't anticipate. ReAct always
+recovers and never lets you predict the bill.
+
+The mature position is hybrid: plan when the dependency structure is knowable, react when it isn't.
+The previous lecture's LangGraph travel planner is the planned end of that spectrum, and this
+notebook's Query 4 is the reactive end.
+
+### Failure modes to forecast
+
+Ranked by how quietly they fail:
+
+1. **Substring control flow.** `if "LGTM" in critique.strip().upper()` accepts a critique reading
+   *"this is not LGTM yet"* as approval, and ships unreviewed code. Structured output with a
+   `{"approved": bool}` field removes the entire class of bug.
+2. **Self-review blindness.** Architecture 1 (one model, two roles) cannot catch the model's own
+   *systematic* errors — the same weights that produced the flaw evaluate it. It reliably catches
+   slips and reliably misses blind spots, and a clean `LGTM` therefore proves less than it appears.
+3. **Silent context truncation** as the ReAct history grows past the window.
+4. **Loop exhaustion read as success.** `reflect_and_revise` returns `approved: False` when it runs
+   out of iterations — a caller that only reads `final_code` and ignores `approved` ships whatever
+   the third revision happened to produce.
+5. **`exec()` on model output.** Fine in a disposable Colab runtime; arbitrary code execution
+   anywhere else.
+
+### Why an interviewer asks this
+
+"Implement a ReAct agent" is a litmus test for **whether you know where the loop terminates.** The
+weak answer describes Thought-Action-Observation and stops. The strong answer immediately asks: what
+is the max step count, what happens when a tool errors, and what does the agent do when it can't
+answer? A loop with no cap is a production incident with a billing component.
+
+The follow-up that separates senior from staff is the reflection question: *"your judge approved on
+the first try — is the code good?"* The honest answer is that you learned the generator's output
+passed *this* judge once, that a same-model judge shares the generator's blind spots, and that the
+revise path is now untested code in your system. Recognising an unexercised branch as a risk rather
+than a success is the judgement being tested.
+
+[🔝 Back to top](#top)
+
+---
+
 ## ✅ Walk-away checklist
 
 - [ ] The three ReAct steps, and why observing after *every* action is what buys error recovery.
@@ -193,16 +313,24 @@ generate → judge → (LGTM? stop) → revise → judge → … up to max_itera
 - [ ] Why tools should return error *strings* rather than raise exceptions.
 - [ ] The reflection loop, and the trade-off between a same-model judge and a separate stronger judge.
 - [ ] The three memory types, and why retrieval is what turns long-term memory into short-term memory.
+- [ ] **(staff)** Why ReAct latency is serial in turns, and which of your tool calls can be batched.
+- [ ] **(staff)** Why a same-model judge approving on iteration 1 proves less than it looks.
 
 ---
 
-## 🎯 5-question self-check
+## 🎯 Self-check — 5 beginner + 3 staff
 
 1. Query 2 asks for price and warranty of every item in order 1002, and the agent makes three tool calls. Why couldn't it have made all three simultaneously from the start?
 2. You add a fourth tool, `check_shipping_status`, and the agent never calls it. What's the first thing to inspect?
 3. The reflection loop returned `approved: True, total_iterations: 1`. What does that tell you about the *code*, and what does it not tell you about the *loop*?
 4. Your reflection loop runs against a judge that never says LGTM. What stops it running forever, and what is `approved` at the end?
 5. An agent has 10,000 stored long-term memories. Why can't it just put them all in the prompt, and what does the pseudocode do instead?
+
+**Staff-level (answerable from the 🏛️ section):**
+
+6. Your ReAct support agent goes from 3 tools to 40. What degrades, and what's the architectural fix?
+7. Your reflection loop reports `approved: True, total_iterations: 1` on 95% of requests in production. Give the optimistic reading and the pessimistic one, and say how you'd tell them apart.
+8. A query needs six tool calls. Describe how you'd cut its latency roughly in half without changing the model.
 
 <details>
 <summary><strong>Answers</strong></summary>
@@ -216,6 +344,14 @@ generate → judge → (LGTM? stop) → revise → judge → … up to max_itera
 4. `max_iterations=3` caps it. After three judge rounds the function returns with `approved: False` and `final_code` set to the last revision — so the caller can tell the difference between "the judge signed off" and "we ran out of attempts", which is the information that actually matters downstream.
 
 5. They wouldn't fit in the context window, and even if they did, irrelevant memories dilute the prompt and degrade the answer. The pseudocode instead embeds the incoming query, runs a similarity search over the vector store, takes `top_k=3`, and additionally discards anything scoring below `0.5` — so only a small, relevant slice of long-term memory is promoted into this turn's short-term memory.
+
+**Staff answers**
+
+6. **Tool-selection accuracy degrades, and so does cost per step.** All 40 descriptions must sit in the system prompt on *every* iteration of the loop, so they consume context budget repeatedly, and the model's ability to discriminate between similar tools falls as the list grows — it starts choosing plausible-but-wrong tools, which is a silent failure that surfaces as bad answers rather than errors. The fix is **retrieval over the tool catalogue**: embed the tool descriptions, embed the incoming query, and inject only the top-5 candidates into the prompt for this request. Secondary fixes: namespace tools into groups and route to a group first; and tighten the descriptions so overlapping tools are explicitly disambiguated ("use this for orders, not for products").
+
+7. **Optimistic:** your generator prompt is good and most tasks are genuinely easy, so reflection is cheap insurance and rarely fires. **Pessimistic:** your judge is too lenient — same-model self-review shares the generator's blind spots, and `"LGTM" in critique.upper()` will accept a critique that merely *mentions* LGTM — so you are paying for a second call that rubber-stamps everything and gives false assurance. **To tell them apart:** deliberately inject known-bad generations (a spec violation, an off-by-one, a missing edge case) and measure the judge's catch rate — if it approves those, the approval rate is meaningless. Also swap in a *different, stronger* model as judge (architecture 2) on a sample and compare verdicts; a large disagreement rate means architecture 1 is the problem. And replace the substring check with a structured `{"approved": bool, "issues": [...]}` verdict so you're measuring an actual decision rather than a string match.
+
+8. **Batch the independent calls into the same turn.** ReAct latency is serial in *turns*, not in tool calls — and `tool_calls` is a list, so a single turn can emit several. The notebook shows both cases: Query 2's calls are dependent (it can't know which products to look up until `lookup_order` returns), so they must be serialised; Query 4's two `check_inventory` calls are independent and the model emits them together in one turn. So: map the dependency graph of the six calls, and for every set with no dependency between them, prompt the model to request them in one turn (and make sure your executor runs a turn's tool calls concurrently rather than in a loop). Six calls with two dependency levels becomes two turns instead of six — roughly a 3× cut, and about half even in the worst realistic shape. Nothing about the model changed.
 
 </details>
 
