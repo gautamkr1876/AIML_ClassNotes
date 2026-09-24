@@ -4,6 +4,29 @@ A **recipe** for turning one notebook into a *learning system*: a single Markdow
 purpose-built diagrams that carries the reader from **beginner → practitioner → advanced →
 senior → staff-level thinking**.
 
+## 📋 How to ask for this (copy-paste)
+
+```text
+Create visual study notes for <notebook path>, following .claude/VISUAL_STUDY_NOTES.md
+```
+
+That one line is enough — the rest of this file supplies the standard. Useful modifiers:
+
+| Add this | Effect |
+|---|---|
+| `preview it in a new file first` | writes `<name>_v2.md` + `images_v2/` so you can compare before replacing |
+| `just regenerate the diagrams` | images only; prose untouched |
+| `where does <number> actually come from?` | applies Rule 7 to notes that already exist |
+| `keep it under N words` | overrides the 7,000-9,000 default |
+| `then push and merge to main` | commit on a branch, merge, push |
+
+**What you get without asking:** structure chosen per concept · Why-layers · dense-explainer
+diagrams with syntax-highlighted code · every quoted number derived and verified · 🧠 Remember and
+Mental Model boxes · a decision guide · a production-architecture extension · 28-ish interview
+questions across 5 tiers · active-recall prompts · a one-page cheat sheet.
+
+---
+
 **Trigger phrases** (any of these means: build this pattern):
 - *"Turn this notebook into visual, interview-ready study notes."*
 - *"Teach me the material through the Markdown — don't just convert the notebook."*
