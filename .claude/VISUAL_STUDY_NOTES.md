@@ -38,6 +38,12 @@ questions across 5 tiers · active-recall prompts · a one-page cheat sheet.
 - `8. Agentic AI Systems/12.  Hybrid Search & Advanced Retrieval/L11_and_L12_Hybrid_Search_&_Advanced_Retrieval.md`
 - its 15 diagrams in the sibling `images/` folder
 
+**Required companion read:** [`architect-context.md`](./architect-context.md) — the **single
+source of truth for what "staff-level" means in this repo**. Re-read it before writing Level 5, the
+🔴/🟣 interview tiers, or the production-architecture section. `FAST_READING_COMPANION.md` uses the
+same file for its staff rung, so the two patterns stay aligned instead of drifting into two
+different definitions of "senior".
+
 **Drawing toolkit:** [`scripts/diagram_kit.py`](../scripts/diagram_kit.py) — the palette, card/arrow
 primitives and layout rules used by every diagram in the reference. **Use it.** Do not reinvent a
 design system per notebook; visual consistency across lectures is half the value.
@@ -119,9 +125,16 @@ need five headings.
 | **2 Mechanics** | what happens internally; the data flow; **a diagram** |
 | **3 Implementation** | the notebook's real code + what the important lines do |
 | **4 Engineering** | latency, quality, cost, scaling, failure modes, trade-offs |
-| **5 Staff thinking** | architecture, evaluation, observability, reliability, design decisions |
+| **5 Staff thinking** | architecture, evaluation, observability, reliability, design decisions — written in the voice and priorities of [`architect-context.md`](./architect-context.md) |
 
 Levels 1–3 come from the notebook. Levels 4–5 are usually **extensions** — mark them (Rule 6).
+
+> ⚠️ **Sequence the voices, never blend them.** `architect-context.md` says to *"completely bypass
+> entry-level syntax, baseline definitions, setup tutorials"*; this file says the opposite, because
+> the reader is a beginner (per `MEMORY.md`). **Both are right, for different levels.** Levels 1–3
+> are beginner-first and assume nothing. Level 5 switches to architect voice and may assume
+> everything levels 1–3 just taught — and nothing more. Sprinkling staff jargon through the
+> intuition sections serves neither reader.
 
 ---
 
@@ -341,7 +354,7 @@ Beyond the per-concept structure, every Visual Study Notes document contains:
 | **🧠 Remember boxes** | end of each major section — the few things to actually retain |
 | **🧠 Mental Model boxes** | where a one-liner does more work than a paragraph |
 | **Decision guide** | tree diagram + text |
-| **Production architecture** | marked as extension |
+| **Production architecture** | marked as extension; written through [`architect-context.md`](./architect-context.md) |
 | **Interview bank** | 5 tiers: 🟢 Beginner · 🔵 Intermediate · 🟠 Advanced · 🔴 Senior · 🟣 Staff/System Design |
 | **Explain It Yourself** | 6–8 active-recall prompts |
 | **One-Page Revision** | the night-before cheat sheet |
@@ -356,6 +369,12 @@ Beyond the per-concept structure, every Visual Study Notes document contains:
   ```text
   Question → What the interviewer is testing → Expected reasoning → Strong answer
   ```
+
+- **Draw the 🔴 Senior and 🟣 Staff questions from [`architect-context.md`](./architect-context.md)'s
+  four analytic priorities** — system design and distributed infrastructure · performance and
+  bottlenecks · low-level and runtime mechanics · architectural trade-offs. Its
+  *interview-evaluation framing* is what the "what the interviewer is testing" line should express:
+  why this question is a litmus test for technical maturity, and what a weak answer reveals.
 
 ### The cheat sheet
 
