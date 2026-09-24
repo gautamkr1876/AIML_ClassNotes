@@ -3,7 +3,7 @@
 **Module 8 · Lectures 11–12** — from *"I don't understand hybrid search"* to *"I can design it in production."*
 
 > **Source notebook:** [`L11_and_L12_Hybrid_Search_&_Advanced_Retrieval.ipynb`](./L11_and_L12_Hybrid_Search_%26_Advanced_Retrieval.ipynb)
-> **Diagrams:** [`images/`](./images/) — 15 figures built specifically for these notes.
+> **Diagrams:** [`images/`](./images/) — 17 figures built specifically for these notes.
 
 **The one-line story:** last class the agent was the *manager*; today we upgrade the *employee*. The vector tool stops being a single top-k lookup and becomes a small system that can search two ways, fuse the results, re-rank them, judge its own output, and retry.
 
@@ -202,6 +202,61 @@ BM25 top-5 for "INC-2847 postmortem":
   0.000  Guardrail Overview  (D01)
 ```
 
+#### Where 4.501 actually comes from
+
+![BM25 derivation: the formula with every symbol labelled, IDF computed for both query terms, and the per-term arithmetic summing to 4.5015](./images/03b_bm25_derivation.png)
+
+> **⊕ Engineering context.** The notebook only calls `BM25.get_scores()` — the arithmetic below is
+> the library's internals, not something the notebook derives. **But it is verified, not asserted:**
+> [`scripts/verify_bm25_derivation.py`](../../scripts/verify_bm25_derivation.py) re-implements Okapi
+> BM25 from the published formula and reproduces the notebook's `4.501 / 1.553 / 1.553` **exactly**.
+
+**The formula:**
+
+```text
+                                       idf(t) x tf(t,d) x (k1+1)
+score(q,d) = SUM over t in q of   ---------------------------------------
+                                  tf(t,d) + k1 x (1 - b + b x dl/avgdl)
+
+idf(t)     = ln( (N - df(t) + 0.5) / (df(t) + 0.5) )
+```
+
+**Every symbol, with this corpus's value:**
+
+| Symbol | Meaning | Value here |
+|---|---|---|
+| `N` | total documents | **20** |
+| `df(t)` | documents containing `t` | 1 (`inc-2847`), 3 (`postmortem`) |
+| `tf(t,d)` | times `t` appears in D06 | 2 (`inc-2847`), 1 (`postmortem`) |
+| `dl` | length of D06 in tokens | **41** |
+| `avgdl` | mean document length | **27.75** |
+| `k1` | term-frequency saturation | 1.5 *(library default)* |
+| `b` | length normalisation | 0.75 *(library default)* |
+
+**Step 1 — how rare is each query term?**
+
+| term | df | `ln((N-df+0.5)/(df+0.5))` | idf |
+|---|--:|---|--:|
+| `inc-2847` | 1 | ln(19.5 / 1.5) = ln(13.0) | **2.5649** |
+| `postmortem` | 3 | ln(17.5 / 3.5) = ln(5.0) | **1.6094** |
+
+**Step 2 — the length penalty**, shared by both terms:
+
+```text
+k1 x (1 - b + b x dl/avgdl) = 1.5 x (1 - 0.75 + 0.75 x 41/27.75) = 1.9378
+```
+
+**Step 3 — each term's contribution:**
+
+| term | numerator | denominator | contributes |
+|---|---|---|--:|
+| `inc-2847` | 2.5649 x 2 x 2.5 = 12.8245 | 2 + 1.9378 = 4.0365 | **3.1767** |
+| `postmortem` | 1.6094 x 1 x 2.5 = 4.0235 | 1 + 1.9378 = 3.0365 | **1.3248** |
+| | | **total** | **4.5015 → printed 4.501** |
+
+> 🧠 **Read the split.** `inc-2847` supplies **71%** of the score off a single extra occurrence,
+> purely because its IDF is 1.6× higher. *That* is what "rarity is the signal" means numerically.
+
 **And where it breaks** — same intent, different words:
 
 ```text
@@ -281,6 +336,47 @@ cos(a, b) = (a · b) / (|a| × |b|)
 ```
 
 ### Level 4 · Engineering
+
+#### Where 0.503 actually comes from
+
+![Cosine derivation: the dot product across 384 dimensions, real DOC_MATRIX values, a fully worked 4-dimensional example, and why a cosine score cannot be decomposed the way BM25 can](./images/04b_cosine_derivation.png)
+
+There is no clever trick here — **the score is one dot product**:
+
+```text
+score(q,d) = q . d = q[0].d[0] + q[1].d[1] + ... + q[383].d[383]
+```
+
+Because `normalize_embeddings=True` made both vectors unit length, there is no division: the dot
+product *is* the cosine.
+
+**Fully worked, in 4 dimensions** (a miniature — the real thing has 384):
+
+```text
+q = [ 0.60, 0.00, 0.80, 0.00 ]
+d = [ 0.48, 0.60, 0.64, 0.00 ]
+
+q.d = 0.60(0.48) + 0.00(0.60) + 0.80(0.64) + 0.00(0.00)
+    = 0.288      + 0          + 0.512      + 0
+    = 0.800
+```
+
+**The real vector** — the notebook printed `DOC_MATRIX[0]`, whose first six components are:
+
+```text
+-0.04306   +0.05089   +0.03576   -0.01621   +0.07910   +0.02888   ... 378 more
+```
+
+`0.503` is the sum of 384 such products.
+
+> ### 🧠 The asymmetry with BM25
+> **BM25's 4.501 decomposes** — `inc-2847` gave 3.1767, `postmortem` gave 1.3248. You can point at
+> the word responsible.
+> **Cosine's 0.503 does not.** No single dimension means "INC-2847"; the 384 numbers are learned and
+> individually meaningless. You cannot name the responsible word.
+>
+> This is *why* the comparison table says sparse is explainable and dense is not — and why §10 cannot
+> threshold a cosine score across queries.
 
 **The root cause is structural, and worth stating precisely:** a **bi-encoder** compresses a document into one fixed vector **before the query is known**. Anything that doesn't survive that compression is gone. Rare identifiers are the first casualty.
 
