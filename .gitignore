@@ -1,0 +1,19 @@
+# ---- macOS ----
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# ---- Python ----
+# scripts/ is imported directly (e.g. diagram_kit), so caches appear here
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ---- credentials ----
+# never commit a key; notebooks should read from Colab Secrets
+*.env
+neo4j.env
+auth_state.json
+*_state.json
