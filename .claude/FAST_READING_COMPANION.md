@@ -64,6 +64,11 @@ A **two-file pack** that lives in the same folder as the notebook, designed to b
 
 The user is an **ML beginner** (per `MEMORY.md`). Their biggest cost is hitting unknown AI/CV jargon mid-notebook and breaking flow to Google it. This pattern **front-loads** every term and the big-picture lesson so by the time they open the notebook, nothing is new.
 
+**Not the same as [`VISUAL_STUDY_NOTES.md`](./VISUAL_STUDY_NOTES.md)** either — that pattern produces a
+single diagram-rich document that *replaces* re-reading the notebook and ends in a 5-tier interview
+bank. This one is a short **pre-read**. If the user asks for diagrams, staff-level depth, or
+"teach me the material", they want Visual Study Notes, not this.
+
 This pattern is **NOT the same as a deep-dive guide** (per `CLAUDE.md`'s "Per-notebook deep-dive pattern"). A deep-dive is comprehensive (full Concept Definition Template per concept, cell-by-cell walkthrough, ≥10 Q&A items). The Fast Reading Companion is **tight, pre-read, beginner-onboarding-only**. Don't conflate them.
 
 | | Deep-dive guide | Fast Reading Companion |

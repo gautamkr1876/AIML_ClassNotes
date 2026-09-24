@@ -12,6 +12,14 @@ For each module we maintain:
 - **Per-notebook deep-dive guides** — `<Topic>_Interview_Prep_Guide.md` inside the notebook's own folder. Created on demand (do not auto-generate), but **when one exists it follows the same beginner-friendly Concept Definition Template standard as the master guide** — see "Per-notebook deep-dive pattern" below.
 - **Master revision guides** — `<Topic>_Revision_Guide.md` at the module root, consolidating multiple notebooks for interview prep.
 
+**Companion recipes in this folder** (invoked by the user's phrasing, not automatically):
+
+| File | Produces | Ask for it when the user says… |
+|---|---|---|
+| [`FAST_READING_COMPANION.md`](./FAST_READING_COMPANION.md) | 2 files: a pre-read Brief + a Jargon Card | *"make me a pre-read"*, *"jargon card"*, *"this notebook is too long"* |
+| [`VISUAL_STUDY_NOTES.md`](./VISUAL_STUDY_NOTES.md) | 1 diagram-rich `.md` + an `images/` folder | *"visual study notes"*, *"teach me the material"*, *"diagrams that teach"* |
+| [`architect-context.md`](./architect-context.md) | the Staff/Principal lens used by both | referenced when writing any staff-level section |
+
 The audience is the repo owner — **a beginner in AI/ML** studying for interviews. They need each concept explained well enough that they don't have to leave the guide to search the web for "what is X" or "why does X matter". Definitions must be **guided and intuitive**, not one-liners. The reader should be able to read a definition once and walk away with the *what*, *why*, *how*, *where*, and *related ideas* — without follow-up search.
 
 **Voice:** intuitive, beginner-friendly, but still scannable. Plain English first; jargon introduced *only* after the plain-English version lands. Tables, code, and bullet structure stay — what changes is that every concept's first appearance must explain itself fully.
