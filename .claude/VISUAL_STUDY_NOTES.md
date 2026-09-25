@@ -422,6 +422,11 @@ Everything for one lecture lives **in that lecture's folder**:
 
 ## Workflow
 
+0. **Add the Colab badge FIRST** — `python3 scripts/add_colab_badge.py "<lecture folder>"`. It
+   inserts a markdown cell at index 0, shifting every cell by +1. Run it *after* writing the notes
+   and every "cell N" reference you wrote — in the prose, in the diagrams and in the verification
+   script — is silently off by one. This has bitten three lectures (L11/L12, L13, L14). Badge
+   first, then read, then write.
 1. **Extract the notebook to text** (never read a large `.ipynb` directly — base64 burns context).
    Strip `data:image/...` URIs. Capture markdown, code **and outputs**.
 2. **Read it all**, then build the concept → relationship → trade-off → architecture map.
@@ -454,6 +459,9 @@ Everything for one lecture lives **in that lecture's folder**:
 - [ ] Cheat sheet usable for rapid revision on its own
 - [ ] Understandable to a beginner **and** deep enough for an advanced reader
 - [ ] Secret scan clean; no credentials copied from the notebook
+- [ ] **Every "cell N" reference resolves to a cell that actually contains what you claim** — assert
+      it programmatically against the committed `.ipynb`, and prefer content-based lookup
+      (`find("def sentiment_match")`) over hardcoded indices in any verification script
 
 ---
 
