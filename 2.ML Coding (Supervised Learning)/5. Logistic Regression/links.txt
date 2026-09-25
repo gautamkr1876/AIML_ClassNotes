@@ -1,0 +1,2 @@
+https://towardsdatascience.com/what-are-rmse-and-mae-e405ce230383/
+https://mlu-explain.github.io/linear-regression/
