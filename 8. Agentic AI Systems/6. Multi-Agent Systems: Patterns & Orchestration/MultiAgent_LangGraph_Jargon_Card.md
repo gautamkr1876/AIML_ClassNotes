@@ -5,7 +5,7 @@
 >
 > **Companion:** read [`MultiAgent_LangGraph_Reading_Brief.md`](./MultiAgent_LangGraph_Reading_Brief.md) *first* — it gives you the punchline, the agenda, and the core concepts. This card is the dictionary you consult while reading.
 >
-> **Notebook:** `Realtime_langgraph_multiagent_travel_planner (1).ipynb` — a real-time travel planner built from 8 agents wired into one LangGraph graph.
+> **Notebook:** `Realtime_langgraph_multiagent_travel_planner.ipynb` — a real-time travel planner built from 8 agents wired into one LangGraph graph.
 
 ---
 

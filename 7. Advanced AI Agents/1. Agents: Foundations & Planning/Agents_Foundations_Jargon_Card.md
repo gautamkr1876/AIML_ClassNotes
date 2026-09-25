@@ -4,7 +4,7 @@
 > **Use this file like a dictionary.** Skim it once (~5 min) before opening the notebook. Then keep it open in a side tab — when you hit an unknown word while reading, look it up here in 20 seconds instead of Googling for 5 minutes.
 >
 > **Companion:** read [`Agents_Foundations_Reading_Brief.md`](./Agents_Foundations_Reading_Brief.md) FIRST. This card is just the dictionary.
-> **The notebook:** `L1_ Agents_ Foundations & Planning (1).ipynb` in this folder.
+> **The notebook:** `L1_ Agents_ Foundations & Planning.ipynb` in this folder.
 
 ---
 

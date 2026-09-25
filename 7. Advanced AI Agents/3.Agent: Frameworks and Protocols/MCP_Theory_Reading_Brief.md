@@ -4,7 +4,7 @@
 > **Read this ONCE, end to end, before opening the notebook.** Target time: ~22 minutes. By the time you reach the notebook, every term in it will already make sense — you'll be confirming what you know, not learning blind.
 >
 > **Side reference:** keep [`MCP_Theory_Jargon_Card.md`](./MCP_Theory_Jargon_Card.md) open in another tab while reading the notebook. When an unknown word appears, look it up there.
-> **The notebook:** `MCP_Theory (1).ipynb` in this folder. This is the *theory / slide-deck* companion to lecture 4's hands-on MCP build — it's almost all markdown, with small illustrative code snippets rather than a runnable project.
+> **The notebook:** `MCP_Theory.ipynb` in this folder. This is the *theory / slide-deck* companion to lecture 4's hands-on MCP build — it's almost all markdown, with small illustrative code snippets rather than a runnable project.
 
 ---
 

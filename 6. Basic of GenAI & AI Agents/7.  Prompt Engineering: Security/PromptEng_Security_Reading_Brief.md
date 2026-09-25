@@ -184,14 +184,14 @@ is_caught = label in ("INJECTION", "JAILBREAK") AND score >= 0.90
 
 | Cells | What it teaches | How to read |
 |---|---|---|
-| 1–5 | Setup: install OpenAI, set keys via `getpass`, Hugging Face login | **Skim.** (Note: this notebook correctly uses `getpass` — no hardcoded keys.) |
-| 6–7 | OWASP Gen AI Security Project background | **Read once.** Context, not code. |
-| 8–24 | **OWASP Top 10** — each risk: scenarios + mitigations | **Focus.** This is the conceptual spine. |
-| 25–32 | Prompt injection deep-dive: injection vs jailbreak, direct vs indirect | **Focus.** Memorize the distinctions. |
-| 33–41 | **Prompt-Guard-86M** demo across 7 attack types | **Focus + run.** Watch labels + scores vs the 0.90 threshold. |
-| 43–74 | **Presidio** PII pipeline: analyze, anonymize, custom recognizers, context-aware, LLM wrapper, de-anon | **Focus.** Lots of reusable code; the LLM-wrapper (cell 69) is the key pattern. Marked **[POST READ]** — fine to do after class. |
-| 75–106 | **Llama Guard** dual-gate firewall: architecture, gates, full pipeline, custom categories, limits | **Focus.** Note input vs output gate roles; read the *limitations* (cell 106). Marked **[POST READ]**. |
-| 109–119 | **Red teaming**: baselines → enhancements → scoring → DeepTeam → best practices | **Focus.** The 3-step loop (cells 111–115) is the takeaway. |
+| 2–6 | Setup: install OpenAI, set keys via `getpass`, Hugging Face login | **Skim.** (Note: this notebook correctly uses `getpass` — no hardcoded keys.) |
+| 7–8 | OWASP Gen AI Security Project background | **Read once.** Context, not code. |
+| 9–25 | **OWASP Top 10** — each risk: scenarios + mitigations | **Focus.** This is the conceptual spine. |
+| 26–33 | Prompt injection deep-dive: injection vs jailbreak, direct vs indirect | **Focus.** Memorize the distinctions. |
+| 34–42 | **Prompt-Guard-86M** demo across 7 attack types | **Focus + run.** Watch labels + scores vs the 0.90 threshold. |
+| 44–75 | **Presidio** PII pipeline: analyze, anonymize, custom recognizers, context-aware, LLM wrapper, de-anon | **Focus.** Lots of reusable code; the LLM-wrapper (cell 70) is the key pattern. Marked **[POST READ]** — fine to do after class. |
+| 76–107 | **Llama Guard** dual-gate firewall: architecture, gates, full pipeline, custom categories, limits | **Focus.** Note input vs output gate roles; read the *limitations* (cell 107). Marked **[POST READ]**. |
+| 110–120 | **Red teaming**: baselines → enhancements → scoring → DeepTeam → best practices | **Focus.** The 3-step loop (cells 112–116) is the takeaway. |
 
 ---
 

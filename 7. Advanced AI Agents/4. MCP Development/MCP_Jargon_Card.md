@@ -5,7 +5,7 @@
 >
 > **Companion:** read [`MCP_Reading_Brief.md`](./MCP_Reading_Brief.md) FIRST. That file gives you the punchline and the mental model; this card is just the vocabulary.
 >
-> **The notebook:** `MCP_Server_Client_Tutorial (1).ipynb` — a hands-on build of a Text2SQL agent that turns plain-English questions into SQL, using the Model Context Protocol.
+> **The notebook:** `MCP_Server_Client_Tutorial.ipynb` — a hands-on build of a Text2SQL agent that turns plain-English questions into SQL, using the Model Context Protocol.
 
 ---
 
