@@ -4,7 +4,7 @@
 > **Read this ONCE, end to end, before opening the notebook.** Target time: ~25 minutes. By the time you reach the notebook, every word in it will already make sense — you'll be confirming what you already know, not learning blind.
 >
 > **Side reference:** keep [`CV_CNN_Jargon_Card.md`](./CV_CNN_Jargon_Card.md) open in another tab while reading the notebook. When an unknown word appears, look it up there.
-> **The notebook:** `Intro_to_CV_and_CNN_Fundamentals (1).ipynb` in this folder.
+> **The notebook:** `Intro_to_CV_and_CNN_Fundamentals.ipynb` in this folder.
 
 ---
 

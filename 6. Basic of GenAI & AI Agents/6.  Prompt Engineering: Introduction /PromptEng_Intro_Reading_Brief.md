@@ -150,23 +150,23 @@ Notebook guidance: **0–0.3** for math, classification, factual answers; **0.5�
 
 | Cells | What it teaches | How to read |
 |---|---|---|
-| 2–12 | Setup: installs, API keys, `generate_openai`/`generate_hf` helpers, smoke tests | **Skim.** Just note the two helpers exist and which model each uses. |
-| 13–15 | What a prompt is, `P(Y\|X,Θ)`, next-token prediction | **Focus.** This is the conceptual core. |
-| 16–29 | Simple prompting + few-shot prompting | **Focus.** Compare the prompt shapes; note `temperature` choices. |
-| 31–46 | Chain-of-Thought: zero-shot, structured, few-shot | **Focus.** Watch direct-vs-CoT on the same word problem. |
-| 48–74 | ReAct: the loop, simulated tools, then the real `react_agent` orchestrator | **Focus + slow down.** The orchestrator parsing logic (cells 70–71) is the key takeaway. |
-| 75–79 | RAG: why, prompt template, bad vs good prompt | **Focus.** Memorize the three good-RAG rules. |
-| 80–88 | Jinja2 templating for RAG | **Read once.** Note `Template(...).render(...)`. |
+| 3–13 | Setup: installs, API keys, `generate_openai`/`generate_hf` helpers, smoke tests | **Skim.** Just note the two helpers exist and which model each uses. |
+| 14–16 | What a prompt is, `P(Y\|X,Θ)`, next-token prediction | **Focus.** This is the conceptual core. |
+| 17–30 | Simple prompting + few-shot prompting | **Focus.** Compare the prompt shapes; note `temperature` choices. |
+| 32–47 | Chain-of-Thought: zero-shot, structured, few-shot | **Focus.** Watch direct-vs-CoT on the same word problem. |
+| 49–75 | ReAct: the loop, simulated tools, then the real `react_agent` orchestrator | **Focus + slow down.** The orchestrator parsing logic (cells 71–72) is the key takeaway. |
+| 76–80 | RAG: why, prompt template, bad vs good prompt | **Focus.** Memorize the three good-RAG rules. |
+| 81–89 | Jinja2 templating for RAG | **Read once.** Note `Template(...).render(...)`. |
 
 **opik-demo notebook** (~24 cells):
 
 | Cells | What it teaches | How to read |
 |---|---|---|
-| 0–1 | The problem: "the answer is wrong — but *which step* failed?" | **Focus.** This motivates everything. |
-| 2–7 | Demo 1: `@track` a 3-function RAG pipeline → nested trace | **Read.** See how `@track` builds the tree. |
-| 8–10 | Demo 2: trace an agent's multiple tool calls | **Skim.** Same idea, agent flavor. |
-| 11–14 | Demo 3: `track_openai` auto-logs real OpenAI calls | **Read.** |
-| 15–21 | Demo 4: LLM-as-a-Judge — the `Hallucination` metric | **Focus.** Connects back to RAG grounding. |
+| 1–2 | The problem: "the answer is wrong — but *which step* failed?" | **Focus.** This motivates everything. |
+| 3–8 | Demo 1: `@track` a 3-function RAG pipeline → nested trace | **Read.** See how `@track` builds the tree. |
+| 9–11 | Demo 2: trace an agent's multiple tool calls | **Skim.** Same idea, agent flavor. |
+| 12–15 | Demo 3: `track_openai` auto-logs real OpenAI calls | **Read.** |
+| 16–22 | Demo 4: LLM-as-a-Judge — the `Hallucination` metric | **Focus.** Connects back to RAG grounding. |
 
 ---
 

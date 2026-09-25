@@ -4,7 +4,7 @@
 > **Read this ONCE, end to end, before opening the notebook.** Target time: ~22 minutes. By the time you reach the notebook, every word will already make sense — you'll be confirming, not learning blind.
 >
 > **Side reference:** keep [`Agents_Foundations_Jargon_Card.md`](./Agents_Foundations_Jargon_Card.md) open in another tab. When an unknown word appears, look it up there.
-> **The notebook:** `L1_ Agents_ Foundations & Planning (1).ipynb` in this folder.
+> **The notebook:** `L1_ Agents_ Foundations & Planning.ipynb` in this folder.
 
 ---
 

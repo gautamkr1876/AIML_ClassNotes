@@ -5,7 +5,7 @@
 >
 > **Side reference:** keep [`MultiAgent_LangGraph_Jargon_Card.md`](./MultiAgent_LangGraph_Jargon_Card.md) open in another tab for any word you don't recognise.
 >
-> **Notebook:** `Realtime_langgraph_multiagent_travel_planner (1).ipynb` — 32 cells, runs in Colab. Needs **five** API keys: Gemini, Aviationstack, NewsData.io, Tavily, OpenWeather. All are free-tier-able but all are required; the graph will crash on the first agent whose key is missing.
+> **Notebook:** `Realtime_langgraph_multiagent_travel_planner.ipynb` — 32 cells, runs in Colab. Needs **five** API keys: Gemini, Aviationstack, NewsData.io, Tavily, OpenWeather. All are free-tier-able but all are required; the graph will crash on the first agent whose key is missing.
 
 ---
 

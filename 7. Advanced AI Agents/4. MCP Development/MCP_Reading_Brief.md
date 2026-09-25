@@ -4,7 +4,7 @@
 > **Read this ONCE, end to end, before opening the notebook.** Target: ~22 min. By the time you reach the notebook, every word will already make sense — you'll be confirming what you know, not learning blind.
 >
 > **Side reference:** keep [`MCP_Jargon_Card.md`](./MCP_Jargon_Card.md) open in another tab while reading the notebook. When an unknown word appears, look it up there.
-> **The notebook:** `MCP_Server_Client_Tutorial (1).ipynb` in this folder — a *teaching walkthrough* (not a runnable Colab) that builds a Text2SQL agent piece by piece.
+> **The notebook:** `MCP_Server_Client_Tutorial.ipynb` in this folder — a *teaching walkthrough* (not a runnable Colab) that builds a Text2SQL agent piece by piece.
 
 ---
 
