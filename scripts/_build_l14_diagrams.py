@@ -57,7 +57,7 @@ header(ax, 1, "You write the contract. DSPy writes the prompt.",
        "four lines of Python on the right produced every line on the left", glyph="dspy")
 
 codeblock(ax, 3.5, 24, 45.5, 52, fs=9.2, step=1, step_tint="green",
-          title_text="What you write  (cell 14)", code=(
+          title_text="What you write  (cell 15)", code=(
 "class FinancialSentimentBasic(dspy.Signature):\n"
 '    """Classify the sentiment of a\n'
 '    financial news headline."""\n'
@@ -76,7 +76,7 @@ codeblock(ax, 3.5, 24, 45.5, 52, fs=9.2, step=1, step_tint="green",
 "# You declared a typed contract."))
 
 codeblock(ax, 51.5, 24, 45.0, 52, fs=9.2, step=2, step_tint="blue",
-          title_text="What DSPy sends  (cell 16, inspect_history)", code=(
+          title_text="What DSPy sends  (cell 17, inspect_history)", code=(
 "Your input fields are:\n"
 "1. `headline` (str):\n"
 "Your output fields are:\n"
@@ -174,7 +174,7 @@ for x, tint, g, head, lines in cards:
     railcard(ax, x, 45, 21.8, 30, tint, g, head, lines, fs_head=9.8, fs_body=7.5)
 
 codeblock(ax, 3.0, 17, 94.4, 23, fs=9.6, step=5, step_tint="indigo",
-          title_text="How they compose  (cells 23, 26, 32)", code=(
+          title_text="How they compose  (cells 24, 27, 33)", code=(
 "def sentiment_match(example, pred, trace=None):      # METRIC\n"
 "    return float(example.sentiment.strip().lower() == predicted)\n"
 "\n"
@@ -219,7 +219,7 @@ codeblock(ax, 53.0, 46, 43.5, 29, fs=9.4, step=2, step_tint="purple",
 "[[ ## sentiment ## ]]\n"
 "{sentiment}"))
 
-ax.text(3.5, 40.3, "Measured on the same 102-example test set  (cells 27, 28)",
+ax.text(3.5, 40.3, "Measured on the same 102-example test set  (cells 28, 29)",
         fontsize=8.8, color=NAVY, fontweight="bold", fontfamily=SANS, zorder=5)
 evrow(ax, 3.5, 33.2, 93.0, "Predict    accuracy", "79.41%", 0.7941, "green",
       "81 / 102   all scored", lw=30)
@@ -243,7 +243,7 @@ header(ax, 5, "The metric is the whole specification",
        "an optimizer cannot want anything your metric does not measure", glyph="f(x)")
 
 codeblock(ax, 3.5, 30, 52.0, 44, fs=8.6, step=1, step_tint="teal",
-          title_text="cell 23 - the real metric", code=(
+          title_text="cell 24 - the real metric", code=(
 "def sentiment_match(example, pred, trace=None):\n"
 '    """Return 1.0 if predicted sentiment matches\n'
 '    gold, else 0.0. Robust to case/whitespace."""\n'
@@ -269,10 +269,10 @@ railcard(ax, 59.0, 30, 37.5, 20, "rose", "!", "The trap in this one", [
     "`if label in predicted` is a SUBSTRING test.",
     "\"not positive\" contains \"positive\" -> scored 1.0.",
     "First match wins, so \"negative, not positive\" -> negative by list order.",
-    "Verified: cells 24-25 only test the easy cases."], fs_body=7.4)
+    "Verified: cells 25-25 only test the easy cases."], fs_body=7.4)
 
 strip(ax, 3.5, 15.5, 93.0, 10.0, "amber", "i",
-      "Cell 24 asserts Prediction('Positive.') scores 1.0 and cell 25 asserts 'negative' vs gold "
+      "Cell 25 asserts Prediction('Positive.') scores 1.0 and cell 26 asserts 'negative' vs gold "
       "'positive' scores 0.0. Both pass. Neither probes the substring hole - and a lenient metric "
       "does not just mis-report, it teaches the optimizer to prefer hedged, verbose answers.")
 
@@ -288,7 +288,7 @@ frame(ax)
 header(ax, 6, "Splitting data for an optimizer, not a model",
        "3,872 headlines -> 21 / 51 / 102, and each split has a different job", glyph="data")
 
-ax.text(3.5, 76.5, "Raw Financial PhraseBank  (cell 9)  -  heavily imbalanced",
+ax.text(3.5, 76.5, "Raw Financial PhraseBank  (cell 10)  -  heavily imbalanced",
         fontsize=8.8, color=NAVY, fontweight="bold", fontfamily=SANS, zorder=5)
 bx, bw = 3.5, 93.0
 segs = [("neutral", 2298, "grey"), ("positive", 1091, "blue"), ("negative", 483, "rose")]
@@ -310,7 +310,7 @@ sp = [(3.5,  "blue",  "trainset", "21", "7 per class", "7 pos / 7 neg / 7 neu",
       (35.7, "purple","valset", "51", "17 per class", "17 pos / 17 neg / 17 neu",
        "Scores candidate programs during search. Never used in this notebook - BootstrapFewShot does not take a valset."),
       (67.9, "teal",  "testset", "102", "34 per class", "34 pos / 34 neg / 34 neu",
-       "Final, touched once. All three evaluations in cells 27/28/34 run against this.")]
+       "Final, touched once. All three evaluations in cells 28/29/35 run against this.")]
 for x0, tint, nm, n, per, cls, desc in sp:
     card(ax, x0, 28.0, 28.6, 25.5, z=3)
     chip(ax, x0 + 4.4, 49.2, tint, nm[0].upper(), r=2.1, fs=9)
@@ -361,7 +361,7 @@ for x, tint, n, head, txt in steps:
         arrow(ax, x + 22.2, 65.5, x + 26.8, 65.5, color=STRONG[tint], lw=1.9, ms=11)
 
 codeblock(ax, 3.0, 20, 55.0, 27, fs=9.0, step=5, step_tint="amber",
-          title_text="cell 32 - and what it actually reported", code=(
+          title_text="cell 33 - and what it actually reported", code=(
 "bootstrap = BootstrapFewShot(\n"
 "    metric=sentiment_match,\n"
 "    max_bootstrapped_demos=4,\n"
@@ -390,7 +390,7 @@ header(ax, 8, "What compilation actually produced",
        "the artifact is a list of demonstrations - and they carry the teacher's reasoning", glyph="artifact")
 
 codeblock(ax, 3.5, 20, 52.0, 54, fs=9.2, step=1, step_tint="purple",
-          title_text="cell 33 - inspecting the compiled program", code=(
+          title_text="cell 34 - inspecting the compiled program", code=(
 "print(len(compiled_bootstrap.predict.demos))\n"
 "# -> 4\n"
 "\n"
@@ -445,9 +445,9 @@ ax.text(94.0, 80.0, "Reported", fontsize=8.2, color=FAINT, fontweight="bold",
         ha="right", fontfamily=SANS, zorder=5)
 
 rows = [
-    ("dspy.Predict", "cell 27", 102, "79.41%", "green", "complete - 0 errors, 6.3s"),
-    ("dspy.ChainOfThought", "cell 28", 98, "71.57%", "amber", "4 examples scored 0.0 by rate limit"),
-    ("BootstrapFewShot", "cell 34", 49, "none", "rose", "raised at 59/102 - never printed a score"),
+    ("dspy.Predict", "cell 28", 102, "79.41%", "green", "complete - 0 errors, 6.3s"),
+    ("dspy.ChainOfThought", "cell 29", 98, "71.57%", "amber", "4 examples scored 0.0 by rate limit"),
+    ("BootstrapFewShot", "cell 35", 49, "none", "rose", "raised at 59/102 - never printed a score"),
     ("  ^ survivors only", "38 / 49", 49, "77.55%", "grey", "what you would be tempted to quote - 53 examples missing"),
 ]
 y = 66
@@ -544,11 +544,11 @@ save(fig, "10_silent_denominator.png")
 fig, ax = canvas(13, 7.2)
 frame(ax)
 header(ax, 11, "The error analysis contradicts itself",
-       "cell 30 describes one failure mode; cell 29 printed the opposite one", glyph="audit")
+       "cell 31 describes one failure mode; cell 30 printed the opposite one", glyph="audit")
 
 card(ax, 3.5, 42, 45.0, 34, z=3, accent="rose")
 chip(ax, 8.0, 72.0, "rose", "M", r=2.0, fs=9)
-ax.text(11.8, 72.0, "What the markdown claims  (cell 30)", fontsize=9.0, color=ROSE,
+ax.text(11.8, 72.0, "What the markdown claims  (cell 31)", fontsize=9.0, color=ROSE,
         va="center", fontweight="bold", fontfamily=SANS, zorder=5)
 body(ax, 6.5, 66.0,
      "\"Neutral overclaim: model predicts neutral for anything without explicit "
@@ -559,7 +559,7 @@ body(ax, 6.5, 66.0,
 
 card(ax, 51.5, 42, 45.0, 34, z=3, accent="green")
 chip(ax, 56.0, 72.0, "green", "D", r=2.0, fs=9)
-ax.text(59.8, 72.0, "What the output shows  (cell 29)", fontsize=9.0, color=GREEN,
+ax.text(59.8, 72.0, "What the output shows  (cell 30)", fontsize=9.0, color=GREEN,
         va="center", fontweight="bold", fontfamily=SANS, zorder=5)
 ax.text(54.5, 66.2, "7 errors in the first 30 test examples; 5 printed:",
         fontsize=7.8, color=BODY, fontfamily=SANS, zorder=5)
@@ -576,13 +576,13 @@ ax.text(54.5, 49.5, "4 of 5 are neutral gold read as POSITIVE - over-optimism,\n
         fontsize=7.7, color=GREEN, fontfamily=SANS, zorder=5, va="top", linespacing=1.7)
 
 strip(ax, 3.5, 30.0, 93.0, 9.0, "amber", "i",
-      "This matters beyond tidiness: cell 30 uses those claimed patterns to argue what "
+      "This matters beyond tidiness: cell 31 uses those claimed patterns to argue what "
       "'good examples in the prompt would fix'. Bootstrapping then selects demos against the "
       "metric - so a wrong diagnosis here sends you tuning for a failure mode you do not have.")
 
 card(ax, 3.5, 21.5, 93.0, 6.2, z=3)
 ax.text(6.0, 24.6, "Rule:  read the printed errors before you believe the narrative about them. "
-        "Cell 30 says \"what we typically see\" - it was written before the run, not after it.",
+        "Cell 31 says \"what we typically see\" - it was written before the run, not after it.",
         fontsize=8.0, color=NAVY, va="center", fontweight="bold", fontfamily=SANS, zorder=5)
 
 takeaway(ax, "Error analysis written in advance is a hypothesis. Only the confusion counts "

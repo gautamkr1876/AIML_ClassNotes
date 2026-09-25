@@ -25,6 +25,9 @@ make you better at this, so do not skip them.
 | `> **⊕ Engineering context**` | **Added by me** — production material the notebook did not cover |
 | `> **⚠ Contradiction**` | The notebook's prose disagrees with its own recorded output. The output wins. |
 
+Cell numbers are 0-indexed against the notebook **as committed** — cell 0 is the Open-in-Colab
+badge, so the first code cell is cell 2.
+
 Every number quoted here is re-derived from the notebook's saved outputs by
 [`scripts/verify_dspy_eval_arithmetic.py`](../../scripts/verify_dspy_eval_arithmetic.py).
 Run it — it prints `ALL CHECKS PASSED` or tells you which figure moved.
@@ -97,7 +100,7 @@ examples they scored were not the same set, and nothing in the framework warned 
 
 ![Five-step why-layer: problem, naive approach, limitation, solution, trade-off, each on its own row](./images/02_why_prompts_rot.png)
 
-**The task is genuinely hard.** The notebook (cell 6) makes the case with three headlines:
+**The task is genuinely hard.** The notebook (cell 7) makes the case with three headlines:
 
 | Headline | Reads as | Actually is | Why |
 |---|---|---|---|
@@ -145,7 +148,7 @@ surprising.
 | **Metric** | What *better* means | `sentiment_match` — exact match, 1.0 / 0.0 |
 | **Optimizer** | *Search* over prompts | `BootstrapFewShot` |
 
-The composition, drawn from cells 23, 26 and 32:
+The composition, drawn from cells 24, 27 and 33:
 
 ```python
 def sentiment_match(example, pred, trace=None):          # METRIC
@@ -162,7 +165,7 @@ compiled  = bootstrap.compile(student=student, trainset=trainset)
 > entire reason the framework exists.
 
 **A note on vocabulary.** DSPy calls optimizers **teleprompters** in older code and docs
-(`from dspy.teleprompt import BootstrapFewShot`, as in cell 32). Same thing. The name comes from the
+(`from dspy.teleprompt import BootstrapFewShot`, as in cell 33). Same thing. The name comes from the
 idea of prompting the model the way a teleprompter prompts a presenter.
 
 [🔝 Back to top](#top)
@@ -173,7 +176,7 @@ idea of prompting the model the way a teleprompter prompts a presenter.
 
 ## 3 · How a signature becomes a prompt
 
-Cell 14 defines the simplest possible signature:
+Cell 15 defines the simplest possible signature:
 
 ```python
 class FinancialSentimentBasic(dspy.Signature):
@@ -186,7 +189,7 @@ result = basic_classifier(headline="Nokia's third-quarter profit fell short of a
 # result.sentiment -> 'negative'
 ```
 
-Cell 16 then calls `dspy.inspect_history(n=1)` to show what was actually sent. Read the mapping
+Cell 17 then calls `dspy.inspect_history(n=1)` to show what was actually sent. Read the mapping
 carefully, because this is the part people get wrong in interviews:
 
 | What you wrote | Where it ends up |
@@ -200,7 +203,7 @@ That bracketed `[[ ## field ## ]]` format is the work of an **adapter** — the 
 signature into a message list and parses the reply back into typed fields (`ChatAdapter` by default).
 Knowing it exists explains why DSPy can reliably pull `.sentiment` out of a free-text completion.
 
-**Version 3** (cell 19) shows the honest limit of this abstraction:
+**Version 3** (cell 20) shows the honest limit of this abstraction:
 
 ```python
 class FinancialSentiment(dspy.Signature):
@@ -214,7 +217,7 @@ class FinancialSentiment(dspy.Signature):
     sentiment: str = dspy.OutputField(desc="exactly one word: positive, negative, or neutral")
 ```
 
-The notebook's own comment on this (cell 20) is the right one:
+The notebook's own comment on this (cell 21) is the right one:
 
 > *"This is still manual prompt engineering, just at a higher level of abstraction. We wrote a good
 > docstring, but we haven't done any optimization yet."*
@@ -253,8 +256,8 @@ The measured consequence on the same 102-example test set:
 
 | | Accuracy | Time | Throughput |
 |---|---|---|---|
-| `Predict` (cell 27) | **79.41%** | 6.3 s | 16.20 it/s |
-| `ChainOfThought` (cell 28) | **71.57%** | 69.0 s | 1.48 it/s |
+| `Predict` (cell 28) | **79.41%** | 6.3 s | 16.20 it/s |
+| `ChainOfThought` (cell 29) | **71.57%** | 69.0 s | 1.48 it/s |
 
 Chain of Thought is **11× slower and 7.84 points worse**.
 
@@ -290,9 +293,9 @@ of the boring correct answer. [§8](#8) shows this happening in the printed erro
 
 ![The sentiment_match function in a code panel, with a card describing the metric contract and a card listing the substring-matching trap it contains](./images/05_metric_contract.png)
 
-> *"You cannot optimize what you cannot measure."* — cell 21
+> *"You cannot optimize what you cannot measure."* — cell 22
 
-Cell 23, verbatim:
+Cell 24, verbatim:
 
 ```python
 def sentiment_match(example, pred, trace=None):
@@ -329,7 +332,7 @@ notebook never examines:
   `"negative, definitely not positive"` resolves to `positive` — the *wrong* one — because
   `positive` is checked first.
 
-Cells 24 and 25 do test the metric, but only on the easy cases:
+Cells 25 and 26 do test the metric, but only on the easy cases:
 
 ```python
 sentiment_match(dspy.Example(sentiment="positive"), dspy.Prediction(sentiment="Positive."))  # 1.0
@@ -382,7 +385,7 @@ the student to hedge. The bug does not stay a measurement bug; it becomes a beha
 
 ![Proportional bar of the raw class distribution above three cards showing the stratified train, validation and test splits and the role of each](./images/06_data_splits.png)
 
-The raw pool (cell 9) is badly skewed:
+The raw pool (cell 10) is badly skewed:
 
 | Class | Count | Share |
 |---|---|---|
@@ -394,7 +397,7 @@ The raw pool (cell 9) is badly skewed:
 **Always answering `neutral` scores 2,298 / 3,872 = 59.35%.** Any accuracy you quote has to beat
 that before it means anything. This is the number to keep in your head for the rest of the lecture.
 
-So cell 10 samples a **balanced** slice — equal counts per class:
+So cell 11 samples a **balanced** slice — equal counts per class:
 
 | Split | Size | Per class | Its job |
 |---|---|---|---|
@@ -465,7 +468,7 @@ docstring and **no examples and no optimization at all**. That strong baseline i
 the rest of the lecture hard — there is little room left above it.
 
 > **⊕ Engineering context** — `num_threads=1` is doing real work here, and the notebook says so in
-> cell 27's comment: concurrency was reduced to avoid Groq rate limits. Note the ordering problem
+> cell 28's comment: concurrency was reduced to avoid Groq rate limits. Note the ordering problem
 > this creates. Serial evaluation is *slower* but hits the per-minute token ceiling less often;
 > parallel evaluation is faster but bursts. Neither setting changes your program's quality, yet both
 > change the number you report. When an eval's result depends on its concurrency setting, the eval
@@ -482,7 +485,7 @@ the rest of the lecture hard — there is little room left above it.
 
 ![Side-by-side comparison: the markdown's claimed failure modes on the left, the actual printed error directions on the right showing four neutral-to-positive errors](./images/11_error_analysis_contradiction.png)
 
-Cell 29 samples the first 30 test examples and prints the misses:
+Cell 30 samples the first 30 test examples and prints the misses:
 
 ```text
 Errors in first 30: 7
@@ -495,7 +498,7 @@ Five are printed. Their directions:
 | `neutral` | `positive` | **4** |
 | `negative` | `neutral` | 1 |
 
-Cell 30 then describes "what we typically see":
+Cell 31 then describes "what we typically see":
 
 > 1. **Neutral overclaim**: model predicts neutral for anything without explicit "up/down" words…
 > 2. **Domain-blindness**: *"Operating profit narrowed…"* often mispredicted as neutral…
@@ -521,12 +524,12 @@ This is the CoT mechanism from [§4](#4) again. Told to reason first, the model 
 story, and a story about a company is almost always optimistic. The gold label is just "an
 announcement happened."
 
-**Why it matters practically.** Cell 30 closes by arguing these patterns are "exactly what good
+**Why it matters practically.** Cell 31 closes by arguing these patterns are "exactly what good
 examples in the prompt would fix" — the justification for bootstrapping in the next cell. But the
 demos that fix over-optimism are not the demos that fix neutral-overclaim, so a wrong diagnosis sends
 the optimizer hunting a failure mode the model does not have.
 
-Cell 30 is phrased as *"what we typically see"* — it was written **before** the run, from general
+Cell 31 is phrased as *"what we typically see"* — it was written **before** the run, from general
 expectation, and never reconciled against the output below it.
 
 > 🧠 **Mental Model** — **Error analysis written in advance is a hypothesis; only the printed
@@ -547,7 +550,7 @@ expectation, and never reconciled against the output below it.
 
 ![Four-step algorithm walk from teacher run through metric filter to compiled student, with the configuration code and a card interpreting what the compile output actually reported](./images/07_bootstrap_algorithm.png)
 
-The algorithm, as cell 31 describes it:
+The algorithm, as cell 32 describes it:
 
 1. Take an unoptimized module — the **teacher**.
 2. For each training example, run the teacher and capture the **full trace** (reasoning + output).
@@ -682,13 +685,13 @@ The notebook's narrative arc is *"optimization beats the baseline."* What it rec
 null result:
 
 - The **only complete run is the unoptimized one**.
-- The optimized run **never produced a number at all** — cell 34's final output is an exception
+- The optimized run **never produced a number at all** — cell 35's final output is an exception
   (`Exception: Execution cancelled due to errors or interruption.`), so `bootstrap_score` was never
   assigned and the `print` never executed.
-- Cell 35, where the comparison would have gone, is **empty**. So is the promised "Run 2" implied by
-  cell 31's heading *"Run 1: `BootstrapFewShot`"*. `matplotlib` is imported in cell 2 and never used.
+- Cell 36, where the comparison would have gone, is **empty**. So is the promised "Run 2" implied by
+  cell 32's heading *"Run 1: `BootstrapFewShot`"*. `matplotlib` is imported in cell 3 and never used.
 
-**The trap is the diagram's last row.** Cell 34's progress bar reached `38.00 / 49 (77.6%)` before
+**The trap is the diagram's last row.** Cell 35's progress bar reached `38.00 / 49 (77.6%)` before
 dying, and it is tempting to read 77.55% as "nearly caught the baseline." It is not comparable:
 
 - Different examples — 49 of the 102, in whatever order the dataloader produced.
@@ -729,7 +732,7 @@ are the mechanism for both the slowdown and the errors.
 
 ### 11c · The two numbers printed by the same cell
 
-This is the detail worth memorising. Cell 28's output contains **both** of these:
+This is the detail worth memorising. Cell 29's output contains **both** of these:
 
 ```text
 Average Metric: 73.00 / 98 (74.5%): 100%|██████████| 102/102 [01:08<00:00, 1.48it/s]
@@ -759,13 +762,13 @@ tier. The remaining 4.92 points are real and consistent with the over-optimism i
 
 ### 11d · A third contradiction: which model produced these numbers?
 
-Cell 4 configures the LM:
+Cell 5 configures the LM:
 
 ```python
 lm = dspy.LM(model="groq/openai/gpt-oss-20b", api_key=..., max_tokens=512, temperature=0.0)
 ```
 
-But every rate-limit error in cells 28 and 34 names a **different model**:
+But every rate-limit error in cells 29 and 35 names a **different model**:
 
 ```text
 [llama-3.1-8b-instant] litellm.RateLimitError: … Rate limit reached for model `llama-3.1-8b-instant`
@@ -775,18 +778,18 @@ And the `inspect_history` timestamps span six weeks:
 
 | Cell | Timestamp |
 |---|---|
-| 16 (Predict prompt) | `2026-08-13T17:29:14` |
-| 27, 28, 32, 34 (all evaluations) | `2026/08/13 17:29–17:31` |
-| 18 (CoT prompt) | `2026-09-24T17:13:20` |
+| 17 (Predict prompt) | `2026-08-13T17:29:14` |
+| 28, 29, 33, 35 (all evaluations) | `2026/08/13 17:29–17:31` |
+| 19 (CoT prompt) | `2026-09-24T17:13:20` |
 
 > **⚠ Contradiction** — the evaluation numbers were all produced on 13 August by
-> `llama-3.1-8b-instant`. The model declaration you read in cell 4 is `gpt-oss-20b`, and cell 18 was
+> `llama-3.1-8b-instant`. The model declaration you read in cell 5 is `gpt-oss-20b`, and cell 19 was
 > re-run on 24 September. **The code shown and the numbers shown come from different sessions and
 > different models.**
 
 The evaluations remain comparable *to each other* — they share a timestamp and an error signature.
-But re-running cell 4 as written will not reproduce 79.41%, and attributing these scores to
-`gpt-oss-20b` is wrong. A smaller one in the same family: cell 26's comment says *"We use
+But re-running cell 5 as written will not reproduce 79.41%, and attributing these scores to
+`gpt-oss-20b` is wrong. A smaller one in the same family: cell 27's comment says *"We use
 `num_threads=4` to stay safely under limits"* while the code below it sets `num_threads=1`.
 
 > **⊕ Engineering context** — what a trustworthy evaluation harness does differently:
@@ -808,7 +811,7 @@ But re-running cell 4 as written will not reproduce 79.41%, and attributing thes
 > - Only **one** number in this notebook is trustworthy: 79.41% from `Predict`.
 > - 2.92 of CoT's 7.84 lost points are infrastructure; 4.92 are real.
 > - Survivor-only scores flatter the run that failed most.
-> - The recorded scores came from `llama-3.1-8b-instant`, not the `gpt-oss-20b` in cell 4.
+> - The recorded scores came from `llama-3.1-8b-instant`, not the `gpt-oss-20b` in cell 5.
 
 [🔝 Back to top](#top)
 
@@ -988,7 +991,7 @@ model talks itself into "positive" when the gold label is "neutral."
 **10. What is a teleprompter in DSPy?**
 The older name for an optimizer — `from dspy.teleprompt import BootstrapFewShot`. Same object.
 
-**11. Cell 23's metric does `if label in predicted`. What breaks?**
+**11. Cell 24's metric does `if label in predicted`. What breaks?**
 It is a substring test, so `"not positive"` contains `"positive"` and scores as positive. The loop
 also returns on first match in list order, so `"negative, not positive"` resolves to `positive`.
 
@@ -1012,17 +1015,17 @@ also returns on first match in list order, so `"negative, not positive"` resolve
 - *Expected reasoning:* trace the bug from measurement into optimizer behaviour.
 - *Strong answer:* An ordinary bug gives you a wrong number. This one changes the program. `BootstrapFewShot` *selects* demonstrations by metric score, so a metric that credits hedged, verbose answers keeps hedged, verbose demos — which then teach the student to hedge. The bug propagates from measurement into behaviour and gets baked into the artifact you ship.
 
-**15. Cell 30 claims the model over-predicts `neutral`. The output shows the opposite. Why does it matter?**
+**15. Cell 31 claims the model over-predicts `neutral`. The output shows the opposite. Why does it matter?**
 
 - *What the interviewer is testing:* whether you validate claims against evidence, including your own.
 - *Expected reasoning:* connect the diagnosis to the remedy it justifies.
-- *Strong answer:* Four of five printed errors are gold `neutral` predicted `positive` — over-optimism, not neutral overclaim. It matters because cell 30 uses its diagnosis to argue what "good examples in the prompt would fix," which is the rationale for bootstrapping. The demos that fix over-optimism are not the demos that fix over-neutrality, so a wrong diagnosis aims the optimizer at a failure mode the model does not have. The text was written from expectation before the run and never reconciled.
+- *Strong answer:* Four of five printed errors are gold `neutral` predicted `positive` — over-optimism, not neutral overclaim. It matters because cell 31 uses its diagnosis to argue what "good examples in the prompt would fix," which is the rationale for bootstrapping. The demos that fix over-optimism are not the demos that fix over-neutrality, so a wrong diagnosis aims the optimizer at a failure mode the model does not have. The text was written from expectation before the run and never reconciled.
 
-**16. Cell 4 declares `gpt-oss-20b`; the errors name `llama-3.1-8b-instant`. What do you do?**
+**16. Cell 5 declares `gpt-oss-20b`; the errors name `llama-3.1-8b-instant`. What do you do?**
 
 - *What the interviewer is testing:* reproducibility instincts and willingness to distrust a notebook.
 - *Expected reasoning:* establish which artifacts are contemporaneous before trusting any of them.
-- *Strong answer:* The `inspect_history` timestamps settle it — every evaluation carries 13 August and the `llama-3.1-8b-instant` error signature, while cell 18 was re-run on 24 September. The scores and the visible code come from different sessions and different models. The four evals are still comparable to each other, but nothing here should be attributed to `gpt-oss-20b`, and re-running as written will not reproduce 79.41%. Fix: stamp every result row with model ID, timestamp and git SHA.
+- *Strong answer:* The `inspect_history` timestamps settle it — every evaluation carries 13 August and the `llama-3.1-8b-instant` error signature, while cell 19 was re-run on 24 September. The scores and the visible code come from different sessions and different models. The four evals are still comparable to each other, but nothing here should be attributed to `gpt-oss-20b`, and re-running as written will not reproduce 79.41%. Fix: stamp every result row with model ID, timestamp and git SHA.
 
 **17. Compile took 0.2 s. Why is that a red flag?**
 
@@ -1087,7 +1090,7 @@ also returns on first match in list order, so `"negative, not positive"` resolve
 Cover the notes. Say each answer out loud. If you stall, the section is linked.
 
 1. Explain what DSPy compiles, and what it explicitly does **not** compile. → [§1](#1), [§10](#10)
-2. Walk through how a five-line `Signature` becomes the prompt in cell 16. → [§3](#3)
+2. Walk through how a five-line `Signature` becomes the prompt in cell 17. → [§3](#3)
 3. Explain why `ChainOfThought` was slower **and** less accurate, and split the loss into its two causes. → [§4](#4), [§11b](#11)
 4. Someone shows you `74.5%` and `71.6%` from the same run. Explain the difference without looking. → [§11c](#11)
 5. Describe `BootstrapFewShot` in four steps, then say why "4 traces after 4 examples" is a warning. → [§9](#9)
@@ -1139,7 +1142,7 @@ Climb only when the rung below stops paying. None of them outruns a bad metric.
 2. **Survivorship** — a truncated run's 77.55% looks competitive and means nothing.
 3. **Cap-not-search** — `BootstrapFewShot` stopped at 19% of the trainset in 0.2 s.
 4. **Lenient metric** — substring matching credits `"not positive"` as positive.
-5. **Prose vs output** — cell 30 claims over-`neutral`; the errors show over-`positive`.
+5. **Prose vs output** — cell 31 claims over-`neutral`; the errors show over-`positive`.
 6. **Provenance drift** — code says `gpt-oss-20b`, numbers came from `llama-3.1-8b-instant`.
 7. **Self-inflicted throttling** — CoT's tokens caused the rate limit that then penalised CoT.
 
