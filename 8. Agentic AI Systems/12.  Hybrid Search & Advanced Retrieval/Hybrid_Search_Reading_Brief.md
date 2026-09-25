@@ -211,30 +211,30 @@ MRR = (1/Q) · Σ_q  1 / rank_q      (0 if the correct document was never retrie
 
 | Cells | What it teaches | How to read |
 |---|---|---|
-| 0–5 | Recap, install, Groq key, embedding model | **Skim** — but see gotcha 1 |
-| 6–10 | The 20-document corpus | **Focus on cell 7's comment**: identifiers are planted on purpose |
-| 11–19 | BM25 theory + 3-document IDF worked example | **Focus.** The manual IDF walk-through is the clearest bit here |
-| 20–24 | Dense fails on identifier; BM25 fails on paraphrase | **Focus.** Compare the four score lists side by side |
-| 25–29 | RRF + hybrid results + MCQ 1 | **Focus.** MCQ 1 is the most interview-quotable fact |
-| 30–36 | Cross-encoder, reranking, latency, MCQ 2 | **Focus.** Scores are logits and often negative |
-| 37–40 | Evaluation, Hit@3 / MRR, per-query table | **Focus — read the numbers, not the prose** |
-| 42–46 | Query expansion + MCQ 3 | **Read normally.** The three variants are the lesson |
-| 47–51 | Calibration, thresholds, MCQ 4 | **Read critically.** The gate doesn't fire |
-| 52–57 | Deliberate-failure demo + verifier | **Focus.** The failure demo didn't actually fail |
-| 58–62 | Iterative retrieval + MCQ 5 + wrap-up | **Read.** Both demos pass on iteration 1 |
+| 1–6 | Recap, install, Groq key, embedding model | **Skim** — but see gotcha 1 (cell 0 is the Colab badge) |
+| 7–11 | The 20-document corpus | **Focus on cell 8's comment**: identifiers are planted on purpose |
+| 12–20 | BM25 theory + 3-document IDF worked example | **Focus.** The manual IDF walk-through is the clearest bit here |
+| 21–25 | Dense fails on identifier; BM25 fails on paraphrase | **Focus.** Compare the four score lists side by side |
+| 26–30 | RRF + hybrid results + MCQ 1 | **Focus.** MCQ 1 is the most interview-quotable fact |
+| 31–37 | Cross-encoder, reranking, latency, MCQ 2 | **Focus.** Scores are logits and often negative |
+| 38–41 | Evaluation, Hit@3 / MRR, per-query table | **Focus — read the numbers, not the prose** |
+| 43–47 | Query expansion + MCQ 3 | **Read normally.** The three variants are the lesson |
+| 48–52 | Calibration, thresholds, MCQ 4 | **Read critically.** The gate doesn't fire |
+| 53–58 | Deliberate-failure demo + verifier | **Focus.** The failure demo didn't actually fail |
+| 59–63 | Iterative retrieval + MCQ 5 + wrap-up | **Read.** Both demos pass on iteration 1 |
 
 ---
 
 ## ⚠️ Gotchas
 
-1. **There is a hardcoded Groq API key in cell 3** (`os.environ["GROQ_API_KEY"] = "gsk_..."`). Delete it, let the `userdata.get('GROQ_API_KEY')` fallback on the next lines do the job, and **rotate that key** — it's a live credential in a file about to be committed.
+1. **Cell 4 used to carry a hardcoded Groq API key** (`os.environ["GROQ_API_KEY"] = "gsk_..."`). It has since been removed from the committed notebook — cell 4 now falls through to `userdata.get('GROQ_API_KEY')` with a prompt fallback. **That key still needs rotating at Groq**: it was live in a tracked file, so treat it as compromised regardless of the redaction.
 2. **The confidence gate never fires.** With threshold −11.07, the nonsense query *"the company's stance on time travel research"* scores **−10.95** — above it — so the result is `status: "ok"`. The markdown claims it "triggers a low-confidence signal". It doesn't. The positive range (−10.78 to +9.46) overlaps the negative range, so 10 pairs give no clean separation. Real calibration needs far more pairs and a deliberate precision/recall trade-off.
 3. **The eval table contradicts the text.** Trust the table — see the headline section above.
 4. **The "deliberate failure" demo didn't fail.** Handed three off-topic documents, the model correctly said the context contains no such information. The notebook hedges ("depending on the model's mood"), but you did **not** witness the hallucination the verifier exists to prevent.
 5. **The retry loop never retried.** Both queries were judged sufficient on iteration 1, so the reformulate-and-retry branch is untested — the same blind spot as the reflection loop two lectures back.
 6. **Cross-encoder scores are logits; negative is normal.** A top result at −2.572 isn't a failure — read the gap to #2, not the distance from zero.
-7. **Cells 16, 18 and 19 are empty.** The IDF worked example is markdown only.
-8. **Query expansion is non-deterministic** — variants differ per run (compare cells 43 and 44), so your rankings won't match the notebook's exactly.
+7. **Cells 17, 19 and 20 are empty.** The IDF worked example is markdown only.
+8. **Query expansion is non-deterministic** — variants differ per run (compare cells 44 and 45), so your rankings won't match the notebook's exactly.
 9. **Tokenise queries and documents identically**, or BM25 silently stops matching. The hyphen in the regex keeps `INC-2847` in one piece.
 
 ---
