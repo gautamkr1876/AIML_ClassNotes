@@ -325,9 +325,9 @@ This is the most important section in the lesson, and it is built entirely from 
 
 ![The failure chain: ground truth, Tesseract correct, TrOCR garbage, the garbage entering chunk 0, the failed retrieval, and the agent's fabricated answer](./images/07_garbage_in_chain.png)
 
-> ⚠️ **The notebook's prose says the opposite of what it recorded.** Cell 30 states: *"Tesseract gives garbled output. TrOCR gets it right."* Here is what actually ran.
+> ⚠️ **The notebook's prose says the opposite of what it recorded.** Cell 31 states: *"Tesseract gives garbled output. TrOCR gets it right."* Here is what actually ran.
 
-**Ground truth** — the text drawn into `approval_note.png` by cell 5:
+**Ground truth** — the text drawn into `approval_note.png` by cell 6:
 
 ```text
 Approved by Rohan on 12 Sept
