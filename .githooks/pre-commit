@@ -37,8 +37,15 @@ PATTERNS=(
 
 # A hardcoded `api_key = "literal"` / `"OPENAI_API_KEY": "literal"` assignment,
 # EXCLUDING obvious non-secrets (getpass, env lookups, empty, placeholders).
+#
+# "DO-NOT-REVEAL" is allowlisted for the lecture-17 security notebook, which
+# plants a FAKE canary token in a system prompt and checks whether the agent
+# leaks it. The canary must appear in the source for the lesson to work. This
+# only relaxes the weak assignment heuristic -- the high-confidence PATTERNS
+# above are still applied, so a real sk-/hf_/AKIA key on the same line is
+# still blocked.
 ASSIGN_PATTERN='(api[_-]?key|secret|token|password)["'"'"' ]*[:=][[:space:]]*["'"'"'][^"'"'"']{12,}["'"'"']'
-ASSIGN_ALLOW='getpass|os\.environ|os\.getenv|getenv|<[A-Za-z0-9_]+>|your-|YOUR_|xxx|XXX|\.\.\.|example|placeholder|REDACTED'
+ASSIGN_ALLOW='getpass|os\.environ|os\.getenv|getenv|<[A-Za-z0-9_]+>|your-|YOUR_|xxx|XXX|\.\.\.|example|placeholder|REDACTED|DO-NOT-REVEAL'
 
 # Collect staged, added text lines (skip binary; skip deletions; skip the
 # diff header '+++' lines). --diff-filter=ACM = added/copied/modified.
